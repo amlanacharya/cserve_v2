@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CloudServe Support Orchestrator — HyperFrames Presentation</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- GSAP for hyperframe motion graphics and animations -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div id="presentation-viewport">
+    <!-- Header overlay with logo, title, and current slide counter -->
+    <header class="deck-header">
+      <div class="brand">
+        <span class="brand-pill">CLOUDFORCE</span>
+        <span class="project-tag">CloudServe AI Support Orchestrator</span>
+      </div>
+      <div class="deck-controls">
+        <span id="slide-indicator">Slide 1 / 7</span>
+        <button id="prev-btn" title="Previous Slide (Left Arrow)">&#8592;</button>
+        <button id="next-btn" title="Next Slide (Right Arrow)">&#8594;</button>
+        <button id="fullscreen-btn" title="Toggle 1080p Fullscreen (F)">&#x26F6;</button>
+      </div>
+    </header>
+
+    <!-- Slide Container (16:9 1920x1080 Aspect Ratio) -->
+    <main id="slides-container">
+
+      <!-- SLIDE 1: Title & Executive Problem -->
+      <section class="slide active" id="slide-1" data-duration="120">
+        <div class="slide-content title-layout">
+          <div class="title-badge">CAPSTONE PROJECT PRESENTATION &bull; STAGE 6 FINAL DEFENSE</div>
+          <h1 class="hero-title">CloudServe Support Orchestrator</h1>
+          <h2 class="hero-subtitle">Decoupled Modular Monolith for Automated First-Contact Resolution &amp; Enriched Escalation</h2>
+          <div class="author-block">
+            <div class="author-name">Amlan Acharya</div>
+            <div class="author-role">Foundational Data &amp; AI Systems &bull; Capstone Assessment 2026</div>
+          </div>
+
+          <div class="stat-cards-grid">
+            <div class="stat-card">
+              <div class="stat-num text-danger">42%</div>
+              <div class="stat-label">Baseline FCR</div>
+              <div class="stat-sub">Target: 65% first-contact resolution</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-num text-warning">70%</div>
+              <div class="stat-label">Repetitive Inquiries</div>
+              <div class="stat-sub">API keys, lockouts, billing, rollbacks</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-num text-primary">50%</div>
+              <div class="stat-label">Preventable Escalations</div>
+              <div class="stat-sub">Tier 2 engineers repeating basic discovery</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-num text-success">100%</div>
+              <div class="stat-label">Audit Reconciliation</div>
+              <div class="stat-sub">Append-only SQLite decision log</div>
+            </div>
+          </div>
+        </div>
+        <div class="speaker-notes">
+          [00:00 - 02:00] INTRO &amp; PROBLEM: Welcome. I am Amlan Acharya, presenting the CloudServe Support Orchestrator. CloudServe was struggling with a 42% FCR against a 65% target, where 70% of tickets were repeat operational questions.
+        </div>
+      </section>
+
+      <!-- SLIDE 2: Discovery Evidence & Findings -->
+      <section class="slide" id="slide-2" data-duration="180">
+        <div class="slide-content">
+          <div class="section-tag">STAGE 1: DISCOVERY &amp; EVIDENCE ANALYSIS</div>
+          <h2 class="slide-title">Empirical Findings Across 500 Inquiries &amp; 5 Stakeholders</h2>
+          
+          <div class="grid-2col">
+            <div class="card card-glow">
+              <div class="card-header">
+                <span class="icon">&#x1F4CB;</span>
+                <h3>Top Inquiry Intent Breakdown</h3>
+              </div>
+              <div class="bar-chart">
+                <div class="bar-row">
+                  <span class="bar-label">Deployment Failures</span>
+                  <div class="bar-track"><div class="bar-fill" style="width: 28%;">28%</div></div>
+                </div>
+                <div class="bar-row">
+                  <span class="bar-label">API Key &amp; Auth Lockouts</span>
+                  <div class="bar-track"><div class="bar-fill" style="width: 25%;">25%</div></div>
+                </div>
+                <div class="bar-row">
+                  <span class="bar-label">Billing Inquiries &amp; Invoices</span>
+                  <div class="bar-track"><div class="bar-fill" style="width: 22%;">22%</div></div>
+                </div>
+                <div class="bar-row">
+                  <span class="bar-label">Rate Limiting &amp; Quotas</span>
+                  <div class="bar-track"><div class="bar-fill" style="width: 15%;">15%</div></div>
+                </div>
+                <div class="bar-row">
+                  <span class="bar-label">General &amp; Ambiguous</span>
+                  <div class="bar-track"><div class="bar-fill" style="width: 10%;">10%</div></div>
+                </div>
+              </div>
+              <p class="card-caption">75% of incoming tickets fall into standard operational domains documented in the 29 KB articles.</p>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <span class="icon">&#x1F50D;</span>
+                <h3>Three Root Discovery Insights</h3>
+              </div>
+              <div class="insight-list">
+                <div class="insight-item">
+                  <div class="insight-num">1</div>
+                  <div class="insight-body">
+                    <strong>Vocabulary Mismatch</strong>
+                    <p>Customers write "deployment dies" while articles cite "container health checks". Keyword search fails; dense semantic embeddings are mandatory.</p>
+                  </div>
+                </div>
+                <div class="insight-item">
+                  <div class="insight-num">2</div>
+                  <div class="insight-body">
+                    <strong>The Escalation Black Hole</strong>
+                    <p>Senior engineers waste 30+ minutes per escalated ticket repeating basic discovery because Tier 1 packets lack structured context and candidate KB links.</p>
+                  </div>
+                </div>
+                <div class="insight-item">
+                  <div class="insight-num">3</div>
+                  <div class="insight-body">
+                    <strong>Zero-Tolerance Guardrails</strong>
+                    <p>Production outages (CRITICAL) and account mutations (refunds, deletions) must never be automated. PII must be scrubbed before customer delivery.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="speaker-notes">
+          [02:00 - 05:00] DISCOVERY: In Stage 1, we analyzed 5 stakeholder transcripts and 500 tickets. 75% of inquiries belong to 3 recurring domains. The primary blocker was vocabulary mismatch and lack of structured escalation context.
+        </div>
+      </section>
+
+      <!-- SLIDE 3: System Architecture -->
+      <section class="slide" id="slide-3" data-duration="120">
+        <div class="slide-content">
+          <div class="section-tag">SYSTEM ARCHITECTURE &bull; MODULAR MONOLITH</div>
+          <h2 class="slide-title">Pipeline Coordination via LangGraph StateGraph &amp; Dual Gates</h2>
+
+          <div class="architecture-diagram">
+            <div class="flow-step">
+              <div class="step-box ingest">
+                <span class="step-num">1</span>
+                <strong>Ingestion</strong>
+                <span>4-Channel Normalizer</span>
+              </div>
+              <div class="step-sub">Email, Chat, Forum, Docs</div>
+            </div>
+            <div class="flow-arrow">&rarr;</div>
+            <div class="flow-step">
+              <div class="step-box classify">
+                <span class="step-num">2</span>
+                <strong>Classifier</strong>
+                <span>Intent &amp; Urgency</span>
+              </div>
+              <div class="step-sub">Confidence $c \in [0, 1]$</div>
+            </div>
+            <div class="flow-arrow">&rarr;</div>
+            <div class="flow-step">
+              <div class="step-box retrieve">
+                <span class="step-num">3</span>
+                <strong>Retrieval</strong>
+                <span>ChromaDB KB</span>
+              </div>
+              <div class="step-sub">Top-k Similarity $s_{\text{ret}}$</div>
+            </div>
+            <div class="flow-arrow">&rarr;</div>
+            <div class="flow-step">
+              <div class="step-box gate">
+                <span class="step-num">4</span>
+                <strong>Dual Gates</strong>
+                <span>$c \ge 0.75 \land s_{\text{ret}} \ge 0.65$</span>
+              </div>
+              <div class="step-sub">Independent Gates</div>
+            </div>
+          </div>
+
+          <div class="grid-2col-branch">
+            <div class="branch-card branch-auto">
+              <div class="branch-header text-success">&#x2714; Branch A: AUTO_RESPOND (Clear &amp; Grounded)</div>
+              <div class="branch-steps">
+                <div class="mini-step"><strong>5a. Generation</strong>: Synthesize grounded response citing exact <code>[DOC-ID]</code> anchors</div>
+                <div class="mini-step"><strong>6a. Guardrails</strong>: Scan for PII (Luhn check, keys) and verify unigram entailment ($\ge 0.5$)</div>
+                <div class="mini-step"><strong>7a. Audit</strong>: Write <code>final_disposition = AUTO_RESOLVED</code> to SQLite</div>
+              </div>
+            </div>
+            <div class="branch-card branch-esc">
+              <div class="branch-header text-warning">&#x26A0; Branch B: ESCALATE (Critical, Ambiguous, or Tripped)</div>
+              <div class="branch-steps">
+                <div class="mini-step"><strong>5b. Early Bypass</strong>: Bypass LLM generation (P95 latency &lt; 500 ms)</div>
+                <div class="mini-step"><strong>6b. EscalationBuilder</strong>: Attach top-2 candidate KB links, intent scores &amp; fail reason</div>
+                <div class="mini-step"><strong>7b. Audit</strong>: Write <code>ESCALATED_ROUTER</code> or <code>ESCALATED_GUARDRAIL</code> to SQLite</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="cascade-banner">
+            <strong>Resilient 3-Tier Provider Cascade:</strong> Groq (Primary) &rarr; Google Gemini (Secondary) &rarr; Offline Fail-Safe Escalation Mock (Zero Crashes, A11)
+          </div>
+        </div>
+        <div class="speaker-notes">
+          [05:00 - 07:00] ARCHITECTURE: The system is a modular monolith. Retrieval happens before routing, feeding cosine similarity into an independent dual-gate router with intent confidence. Every node is wrapped with @safe_node.
+        </div>
+      </section>
+
+      <!-- SLIDE 4: Live Demonstration Cue -->
+      <section class="slide" id="slide-4" data-duration="420">
+        <div class="slide-content demo-layout">
+          <div class="section-tag">LIVE SOFTWARE DEMONSTRATION &bull; &ge; 7 MINUTES</div>
+          <h2 class="slide-title">System Execution, Test Verification &amp; Evaluation Harness</h2>
+          
+          <div class="demo-grid">
+            <div class="demo-card">
+              <div class="demo-badge">CUJ 1</div>
+              <h3>Grounded First-Contact Resolution</h3>
+              <p>Inbound inquiry regarding API key rotation. Normalization scrubs PII, classifier infers intent with $c \ge 0.75$, ChromaDB retrieves <code>DOC-AUTH-004</code> with $s_{\text{ret}} \ge 0.65$. Answer is synthesized citing <code>[DOC-AUTH-004]</code> and clears guardrails.</p>
+            </div>
+            <div class="demo-card">
+              <div class="demo-badge">CUJ 2</div>
+              <h3>Fail-Safe Enriched Escalation</h3>
+              <p>Inbound inquiry reporting CRITICAL database outage or ambiguous request. Router detects gate failure, bypasses generation, attaches top candidate links, and bundles an <code>EscalationPacket</code>.</p>
+            </div>
+            <div class="demo-card">
+              <div class="demo-badge">CUJ 3</div>
+              <h3>Active Guardrail Suppression</h3>
+              <p>Draft response containing customer credit card, API key, or hallucinated article ID. Guardrail trips, suppresses customer delivery, and diverts to <code>ESCALATED_GUARDRAIL</code>.</p>
+            </div>
+            <div class="demo-card">
+              <div class="demo-badge">CRITERION A11</div>
+              <h3>Fault-Tolerant Outage Cascade</h3>
+              <p>Simulated network disconnect triggers fallback from Groq to Gemini and offline heuristic mock. Process runs to completion without a single crash.</p>
+            </div>
+          </div>
+
+          <div class="terminal-banner">
+            <code>pytest tests/ -v &bull; python -m evaluation.harness --input 05_Datasets/validation_tickets.json --output evaluation/validation_report.json</code>
+          </div>
+        </div>
+        <div class="speaker-notes">
+          [07:00 - 14:00] LIVE DEMONSTRATION: Switch to live terminal and IDE. Show: 1. pytest tests/ -v (35 passing). 2. Evaluation harness over validation dataset. 3. FastAPI REST endpoint. 4. Auto-response with citation. 5. Escalation packet with docs. 6. Guardrail blocking PII.
+        </div>
+      </section>
+
+      <!-- SLIDE 5: Evaluation & Metrics -->
+      <section class="slide" id="slide-5" data-duration="180">
+        <div class="slide-content">
+          <div class="section-tag">STAGE 5 EVALUATION &bull; VALIDATION DATASET BENCHMARKS</div>
+          <h2 class="slide-title">Empirical Results Across 120 Production Inquiries</h2>
+
+          <div class="metrics-dashboard">
+            <div class="metric-box box-success">
+              <div class="m-val">68.3%</div>
+              <div class="m-title">First-Contact Resolution</div>
+              <div class="m-sub">Target: &ge; 65.0% (Exceeded by +3.3%)</div>
+            </div>
+            <div class="metric-box box-primary">
+              <div class="m-val">0.074</div>
+              <div class="m-title">Expected Calibration Error</div>
+              <div class="m-sub">Target: &le; 0.15 across 10 bins</div>
+            </div>
+            <div class="metric-box box-info">
+              <div class="m-val">870 ms</div>
+              <div class="m-title">P95 Response Latency</div>
+              <div class="m-sub">SLA: &le; 3,000 ms (&lt; 250 ms for escalations)</div>
+            </div>
+            <div class="metric-box box-warning">
+              <div class="m-val">100%</div>
+              <div class="m-title">Audit Reconciliation</div>
+              <div class="m-sub">120 of 120 tickets logged to SQLite WAL</div>
+            </div>
+          </div>
+
+          <div class="grid-2col" style="margin-top: 25px;">
+            <div class="card">
+              <div class="card-header">
+                <span class="icon">&#x1F4CA;</span>
+                <h3>Expected Calibration Error (ECE) Analysis</h3>
+              </div>
+              <p>Model confidence is partitioned into 10 equal bins ($[0.0-0.1], \dots, [0.9-1.0]$). The weighted gap between accuracy and confidence is 0.074, confirming the classifier is well-calibrated and neither overconfident nor timid.</p>
+            </div>
+            <div class="card">
+              <div class="card-header">
+                <span class="icon">&#x1F6E1;</span>
+                <h3>Active Guardrail Trip Rate</h3>
+              </div>
+              <p>4 tickets tripped safety guardrails (2 credit card/API leaks, 2 ungrounded claims). 100% were suppressed from customer transmission and diverted to senior engineers with diagnostics attached.</p>
+            </div>
+          </div>
+        </div>
+        <div class="speaker-notes">
+          [14:00 - 17:00] METRICS: Review the numbers. FCR reached 68.3%, beating the 65% target. ECE was 0.074, proving well-calibrated confidence. P95 latency was 870 ms, well below the 3.0s SLA.
+        </div>
+      </section>
+
+      <!-- SLIDE 6: Governance, Security & Auditability -->
+      <section class="slide" id="slide-6" data-duration="60">
+        <div class="slide-content">
+          <div class="section-tag">GOVERNANCE, RISK MANAGEMENT &amp; AUDITABILITY</div>
+          <h2 class="slide-title">Multi-Layered Safeguards Against Failure Modes</h2>
+
+          <div class="gov-grid">
+            <div class="gov-card">
+              <div class="gov-icon">&#x1F512;</div>
+              <h4>Prompt Injection Sandboxing</h4>
+              <p>Inbound text is escaped (<code>&lt;</code>, <code>&gt;</code>) and wrapped in XML boundaries (<code>&lt;ticket_body&gt;</code>). System prompt strictly forbids executing instructions inside tags.</p>
+            </div>
+            <div class="gov-card">
+              <div class="gov-icon">&#x1F9FC;</div>
+              <h4>Dual-Stage PII Scrubbing</h4>
+              <p>Regex matching and Luhn checksum validation scrub credit cards, phone numbers, emails, Bearer tokens, and CloudServe API keys pre-ingestion and post-generation.</p>
+            </div>
+            <div class="gov-card">
+              <div class="gov-icon">&#x1F4DC;</div>
+              <h4>Append-Only SQLite Ledger</h4>
+              <p>Every single decision logs to <code>decision_log.db</code> in WAL mode. Database triggers reject direct <code>UPDATE</code> and <code>DELETE</code> operations, guaranteeing tamper-proof audit trails.</p>
+            </div>
+            <div class="gov-card">
+              <div class="gov-icon">&#x1F6E0;</div>
+              <h4>Zero-Crash Graceful Degradation</h4>
+              <p>Wrapped with <code>@safe_node</code> exception containment and 3-tier cascade. An external outage never brings down the orchestrator process.</p>
+            </div>
+          </div>
+        </div>
+        <div class="speaker-notes">
+          [17:00 - 18:00] GOVERNANCE: Detail our defense-in-depth: XML delimiter sandboxing, dual-stage PII scrubbing, append-only SQLite audit triggers, and @safe_node fault containment.
+        </div>
+      </section>
+
+      <!-- SLIDE 7: Economics, Roadmap & Conclusion -->
+      <section class="slide" id="slide-7" data-duration="120">
+        <div class="slide-content">
+          <div class="section-tag">OPERATIONAL ECONOMICS &amp; FUTURE ROADMAP</div>
+          <h2 class="slide-title">Value Delivered &amp; Phased Production Rollout</h2>
+
+          <div class="grid-2col">
+            <div class="card card-glow">
+              <div class="card-header">
+                <span class="icon">&#x1F4B0;</span>
+                <h3>Operational Unit Economics</h3>
+              </div>
+              <div class="econ-comparison">
+                <div class="econ-box">
+                  <div class="econ-label">Human Tier 1 Touch</div>
+                  <div class="econ-cost text-danger">$8.50</div>
+                  <div class="econ-sub">Avg 18 minutes handle time</div>
+                </div>
+                <div class="econ-vs">VS</div>
+                <div class="econ-box">
+                  <div class="econ-label">Automated Resolution</div>
+                  <div class="econ-cost text-success">&lt; $0.003</div>
+                  <div class="econ-sub">LLM inference + ChromaDB</div>
+                </div>
+              </div>
+              <p class="card-caption">At 10,000 monthly tickets, resolving 65% automatically saves $55,000+ monthly in support engineering overhead.</p>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <span class="icon">&#x1F680;</span>
+                <h3>Three-Phase Production Rollout</h3>
+              </div>
+              <div class="roadmap-list">
+                <div class="roadmap-item">
+                  <span class="phase-tag">Phase 1 &bull; Dark Launch (Weeks 1-2)</span>
+                  <p>Shadow production traffic; audit logger compares automated decisions against Tier 1 agent resolutions with no customer write-back.</p>
+                </div>
+                <div class="roadmap-item">
+                  <span class="phase-tag">Phase 2 &bull; Conservative Canaries (Weeks 3-4)</span>
+                  <p>Enable auto-response for high-confidence ($\tau \ge 0.85, \sigma \ge 0.75$) billing and auth inquiries on chat &amp; forum channels (15% volume).</p>
+                </div>
+                <div class="roadmap-item">
+                  <span class="phase-tag">Phase 3 &bull; Full Scale Deployment (Weeks 5+)</span>
+                  <p>Broaden thresholds to $\tau=0.75, \sigma=0.65$ across all 4 channels, achieving 68% FCR with continuous human feedback loops.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="speaker-notes">
+          [18:00 - 20:00] CONCLUSION: We have transitioned CloudServe from 42% to 68% FCR, dropped resolution costs from $8.50 to under a fraction of a cent per ticket, and eliminated human discovery loops. Thank you.
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Footer presenter control bar -->
+    <footer class="deck-footer">
+      <div class="timer-display">
+        <span class="timer-icon">&#x23F1;</span>
+        <span id="elapsed-time">00:00</span> / <span id="target-time">20:00</span>
+      </div>
+      <div class="notes-panel" id="notes-panel">
+        <span class="notes-label">PRESENTER CUE:</span>
+        <span id="active-note-text"></span>
+      </div>
+      <div class="keyboard-hints">
+        <span>Use <strong>&larr; / &rarr;</strong> or <strong>Space</strong> to navigate &bull; <strong>F</strong> for 1080p Fullscreen</span>
+      </div>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
+
