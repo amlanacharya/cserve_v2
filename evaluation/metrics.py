@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 import numpy as np
 from src.audit.logger import get_decision_history
+from src.core.config import get_settings
 
 
 def compute_ece(confidences: list[float], accuracies: list[int], num_bins: int = 10) -> float:
@@ -60,6 +61,23 @@ def _has_violation(row: dict[str, Any], prefixes: tuple[str, ...]) -> bool:
     return any(str(v).startswith(prefixes) for v in violations)
 
 
+def _classification_provider(row: dict[str, Any]) -> str:
+    """Provider that classified the ticket; legacy rows (NULL) fall back to provider_used."""
+    return row.get("classification_provider") or row.get("provider_used", "unknown")
+
+
+def _retrieved_doc_ids(row: dict[str, Any]) -> list[str] | None:
+    """Ranked doc_id of each retrieved chunk; None for legacy rows that never logged retrieval."""
+    raw = row.get("retrieved_doc_ids")
+    if raw is None:
+        return None
+    try:
+        ids = json.loads(raw) if isinstance(raw, str) else raw
+    except Exception:
+        return None
+    return [str(i) for i in ids]
+
+
 def _provider_stats(
     rows: list[dict[str, Any]], ground_truth_map: dict[str, dict[str, Any]]
 ) -> dict[str, Any]:
@@ -88,11 +106,18 @@ def compute_metrics(
     run_id: str,
     db_path: str | Path | None = None,
     input_tickets: list[dict[str, Any]] | None = None,
+    k: int | None = None,
 ) -> dict[str, Any]:
     """
     Computes volume, business, technical, and governance metrics for a batch run.
     Reconciles decisions recorded in SQLite decision_log.
+
+    k is the precision@k cut-off. It defaults to the retrieval top-k the pipeline actually uses
+    (Settings.top_k_passages, i.e. TOP_K_PASSAGES, default 3), so precision@k is measured over
+    exactly the chunks that were handed to generation.
     """
+    if k is None:
+        k = get_settings().top_k_passages
     history = get_decision_history(run_id=run_id, db_path=db_path)
     total_tickets = len(history)
 
@@ -148,20 +173,17 @@ def compute_metrics(
             accuracies.append(is_match)
             confidences.append(conf)
 
-            # Retrieval precision evaluation
+            # Retrieval precision@k: fraction of the first k retrieved chunks whose doc is expected.
+            # Uses what retrieval returned (not citations, which vanish on escalation) and is
+            # independent of the routing score gate. Legacy rows without a retrieval log are skipped.
             expected_docs = labels.get("expected_doc_ids", [])
-            if expected_docs:
+            retrieved = _retrieved_doc_ids(r)
+            if expected_docs and retrieved is not None:
                 retrieval_eval_count += 1
-                citations_raw = r.get("citations") or "[]"
-                try:
-                    cites = json.loads(citations_raw) if isinstance(citations_raw, str) else citations_raw
-                except Exception:
-                    cites = []
-                # Per-ticket precision: fraction of retrieved (cited) docs that were expected.
-                # Independent of the routing score gate.
-                unique_cites = set(cites)
-                if unique_cites:
-                    retrieval_hits += len(unique_cites & set(expected_docs)) / len(unique_cites)
+                top_k = retrieved[:k]
+                if top_k:
+                    expected = set(expected_docs)
+                    retrieval_hits += sum(1 for d in top_k if d in expected) / len(top_k)
 
     overall_accuracy = round(sum(accuracies) / len(accuracies), 4) if accuracies else None
     ece = compute_ece(confidences, accuracies, num_bins=10) if accuracies else None
@@ -178,12 +200,23 @@ def compute_metrics(
     guardrail_trips = sum(1 for r in history if r["guardrail_status"] == "TRIPPED")
     degraded_count = sum(1 for r in history if r["is_degraded"] == 1)
 
-    pii_detected = sum(1 for r in history if _has_violation(r, _PII_PREFIXES))
+    # PII detection: a ticket counts once if inbound PII was redacted at ingest OR the output
+    # guardrails flagged PII/credentials.
+    pii_inbound = sum(1 for r in history if int(r.get("pii_redactions_count") or 0) > 0)
+    pii_output = sum(1 for r in history if _has_violation(r, _PII_PREFIXES))
+    pii_detected = sum(
+        1
+        for r in history
+        if int(r.get("pii_redactions_count") or 0) > 0 or _has_violation(r, _PII_PREFIXES)
+    )
+    pii_redactions_total = sum(int(r.get("pii_redactions_count") or 0) for r in history)
     halluc_suppressed = sum(1 for r in history if _has_violation(r, _HALLUCINATION_PREFIXES))
 
+    # Per-provider accuracy/ECE are attributed to the provider that classified the ticket,
+    # not the one that generated the draft (provider_used is overwritten by generation).
     per_provider: dict[str, dict[str, Any]] = {}
-    for provider in provider_distribution:
-        rows = [r for r in history if r.get("provider_used", "unknown") == provider]
+    for provider in dict.fromkeys(_classification_provider(r) for r in history):
+        rows = [r for r in history if _classification_provider(r) == provider]
         per_provider[provider] = _provider_stats(rows, ground_truth_map)
 
     report = {
@@ -206,6 +239,7 @@ def compute_metrics(
             "accuracy": overall_accuracy,
             "expected_calibration_error": ece,
             "retrieval_precision_at_k": retrieval_precision,
+            "retrieval_k": k,
             "latency_p50_ms": p50_latency,
             "latency_p90_ms": p90_latency,
             "latency_p95_ms": p95_latency,
@@ -220,6 +254,9 @@ def compute_metrics(
             "provider_distribution": provider_distribution,
             "pii_detected_count": pii_detected,
             "pii_detection_rate": round(pii_detected / total_tickets, 4),
+            "pii_inbound_redacted_count": pii_inbound,
+            "pii_output_violation_count": pii_output,
+            "pii_redactions_total": pii_redactions_total,
             "hallucination_suppressed_count": halluc_suppressed,
             "hallucination_suppression_rate": round(halluc_suppressed / total_tickets, 4),
             "per_provider": per_provider,

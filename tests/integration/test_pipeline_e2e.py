@@ -3,6 +3,8 @@
 Only the three provider-touching seams (classify, retrieve, generate) are stubbed;
 normalize, routing, guardrails, escalation and audit run for real. No network.
 """
+import json
+
 import pytest
 
 from src.audit.logger import get_decision_history
@@ -133,3 +135,34 @@ def test_routing_truth_table_through_graph(monkeypatch, overrides, expected):
     else:
         assert row["routing_action"] == "ESCALATE"
         assert r.final_response is None and r.escalation_packet is not None
+
+
+def test_audit_row_logs_retrieval_classification_provider_and_pii(monkeypatch):
+    stub_pipeline(monkeypatch, provider="groq")
+    monkeypatch.setattr(
+        nodes,
+        "generate_response",
+        lambda subject, body, retrieved_docs: {
+            "draft_response": GOOD_DRAFT,
+            "citations": ["DOC-API-001"],
+            "provider_used": "gemini",
+        },
+    )
+    SupportOrchestrator().process_ticket(
+        {"channel": "chat", "ticket_id": "E2E-META-01", "message": "Rotate my key, I am bob@example.com"},
+        run_id="RUN-E2E-META-01",
+    )
+    row = get_decision_history(ticket_id="E2E-META-01")[-1]
+    assert row["classification_provider"] == "groq"
+    assert row["provider_used"] == "gemini"
+    assert json.loads(row["retrieved_doc_ids"]) == ["DOC-API-001"]
+    assert row["pii_redactions_count"] == 1
+
+
+def test_escalated_ticket_still_logs_retrieved_docs(monkeypatch):
+    stub_pipeline(monkeypatch, confidence=0.1)
+    run("E2E-META-02")
+    row = get_decision_history(ticket_id="E2E-META-02")[-1]
+    assert row["final_disposition"] == "ESCALATED_ROUTER"
+    assert row["citations"] == "[]"
+    assert json.loads(row["retrieved_doc_ids"]) == ["DOC-API-001"]
