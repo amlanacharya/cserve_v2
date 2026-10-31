@@ -21,7 +21,7 @@ httpx>=0.26.0
 python-dotenv>=1.0.0
 
 # Database
-SQLAlchemy>=2.0.0
+sqlalchemy==2.0.0
 
 # Testing & Quality
 pytest>=7.4.0
