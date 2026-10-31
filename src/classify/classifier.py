@@ -13,7 +13,10 @@ from src.generation.prompts import (
 logger = logging.getLogger(__name__)
 
 SAFETY_VETO_PATTERN = re.compile(
-    r"(refund|billing\s+adjustment|delete\s+my\s+account|legal\s+action|attorney|subpoena|security\s+vulnerability|breach|exploit|talk\s+to\s+a\s+human|agent)",
+    r"\b(refund|billing\s+adjustment|delete\s+my\s+account|legal\s+action|attorney|subpoena"
+    r"|security\s+vulnerability|breach|exploit|talk\s+to\s+a\s+human"
+    r"|(?:human|live|real|support|customer\s+service)\s+agent"
+    r"|(?:talk|speak|transfer(?:\s+me)?|escalate)\s+(?:to|with)\s+an?\s+agent)\b",
     re.IGNORECASE,
 )
 
