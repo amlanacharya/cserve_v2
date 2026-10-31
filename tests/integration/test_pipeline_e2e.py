@@ -5,7 +5,6 @@ normalize, routing, guardrails, escalation and audit run for real. No network.
 """
 import pytest
 
-import src.classify.cache as cache_mod
 from src.audit.logger import get_decision_history
 from src.core.models import DocumentChunk
 from src.orchestrator import SupportOrchestrator
@@ -23,13 +22,7 @@ DOC = DocumentChunk(
 GOOD_DRAFT = "Open the console, choose API keys, then select rotate to issue a new key [DOC-API-001]."
 
 
-@pytest.fixture(autouse=True)
-def isolated_cache(tmp_path, monkeypatch):
-    """Never touch data/cache/classification_cache.json or leak memory entries."""
-    monkeypatch.setattr(cache_mod, "_MEMORY_CACHE", {})
-    monkeypatch.setattr(
-        cache_mod, "_GLOBAL_CACHE", cache_mod.ClassificationCache(tmp_path / "cls.json")
-    )
+pytestmark = pytest.mark.usefixtures("isolated_classification_cache")
 
 
 def stub_pipeline(

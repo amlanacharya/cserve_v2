@@ -3,7 +3,6 @@ import json
 from datetime import datetime, timezone
 from unittest.mock import patch
 
-from src.classify import cache as cache_mod
 from src.classify.cache import compute_ticket_hash
 from src.classify.classifier import classify_ticket
 from src.core.models import CanonicalTicket
@@ -37,9 +36,7 @@ def test_route_reason_unchanged_for_live_provider():
     assert "OFFLINE_FALLBACK" not in reason
 
 
-def test_offline_result_not_cached_and_reclassified_after_recovery(monkeypatch):
-    monkeypatch.setattr(cache_mod, "_MEMORY_CACHE", {})
-    monkeypatch.setattr(cache_mod._GLOBAL_CACHE, "cache_file", None)
+def test_offline_result_not_cached_and_reclassified_after_recovery(isolated_classification_cache):
     ticket = _ticket()
     with patch("src.classify.classifier.call_cascade", return_value=("{}", "offline_mock")):
         first = classify_ticket(ticket)
@@ -49,9 +46,7 @@ def test_offline_result_not_cached_and_reclassified_after_recovery(monkeypatch):
     assert second["provider_used"] == "groq"
 
 
-def test_live_result_is_cached(monkeypatch):
-    monkeypatch.setattr(cache_mod, "_MEMORY_CACHE", {})
-    monkeypatch.setattr(cache_mod._GLOBAL_CACHE, "cache_file", None)
+def test_live_result_is_cached(isolated_classification_cache):
     ticket = _ticket()
     with patch("src.classify.classifier.call_cascade", return_value=(_live_json(), "groq")) as m:
         classify_ticket(ticket)
