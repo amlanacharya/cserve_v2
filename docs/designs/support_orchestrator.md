@@ -291,7 +291,10 @@ Append-only. A surrogate key allows the same `ticket_id` to be reprocessed acros
 | `provider_used` | `TEXT` | No | `CHECK` in `groq`, `gemini`, `offline_mock` | Provider tier used. |
 | `is_degraded` | `INTEGER` | No | `CHECK` in 0, 1 | Safe-degradation flag. |
 | `error_details` | `TEXT` | Yes | n/a | Diagnostic if an exception was caught. |
+| `guardrail_violations` | `TEXT` | No | JSON array, default `'[]'` | Violation diagnoses when a guardrail tripped. |
 | `latency_ms` | `REAL` | No | n/a | End-to-end latency. |
+
+**Migration note**: `guardrail_violations` was added after the first release of this table. `AuditLogger._init_db` adds it to a pre-existing database with `ALTER TABLE decision_log ADD COLUMN guardrail_violations TEXT NOT NULL DEFAULT '[]'` when `PRAGMA table_info` shows it missing; rows written earlier read back as `[]`. The append-only triggers block `UPDATE` and `DELETE` only, so the `ALTER` is unaffected.
 
 ```sql
 CREATE TABLE IF NOT EXISTS decision_log (
@@ -315,6 +318,7 @@ CREATE TABLE IF NOT EXISTS decision_log (
     provider_used         TEXT    NOT NULL CHECK (provider_used IN ('groq','gemini','offline_mock')),
     is_degraded           INTEGER NOT NULL CHECK (is_degraded IN (0,1)),
     error_details         TEXT,
+    guardrail_violations  TEXT    NOT NULL DEFAULT '[]',
     latency_ms            REAL    NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_decision_log_ticket ON decision_log (ticket_id);
