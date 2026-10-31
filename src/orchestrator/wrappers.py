@@ -33,9 +33,18 @@ _FALLBACKS: dict[str, Callable[[dict[str, Any], Exception], dict[str, Any]]] = {
         "urgency": ESCALATION_URGENCY,
         "must_not_auto_respond": True,
         "provider_used": OFFLINE_PROVIDER,
+        # No tier classified this ticket: leave classification_provider unset so the audit row
+        # is NULL there and per-provider metrics bucket it as a classify failure, not offline_mock.
+        "classification_provider": None,
         "failed_node": "classify_node",
     },
-    "retrieval_node": lambda s, e: {"retrieved_docs": [], "top_retrieval_score": 0.0},
+    # failed_node marks the crash so metrics can tell it from a genuinely empty retrieval.
+    # Only one node name is kept: an earlier classify crash wins.
+    "retrieval_node": lambda s, e: {
+        "retrieved_docs": [],
+        "top_retrieval_score": 0.0,
+        "failed_node": s.get("failed_node") or "retrieval_node",
+    },
     "routing_node": lambda s, e: {
         "routing_action": "ESCALATE",
         "routing_reason": f"Routing node fault diversion: {str(e)}",

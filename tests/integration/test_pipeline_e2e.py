@@ -166,3 +166,59 @@ def test_escalated_ticket_still_logs_retrieved_docs(monkeypatch):
     assert row["final_disposition"] == "ESCALATED_ROUTER"
     assert row["citations"] == "[]"
     assert json.loads(row["retrieved_doc_ids"]) == ["DOC-API-001"]
+
+
+def test_retrieval_k_recorded_per_run_not_read_at_report_time(monkeypatch):
+    from src.core.config import get_settings
+
+    stub_pipeline(monkeypatch)
+    monkeypatch.setenv("TOP_K_PASSAGES", "2")
+    get_settings.cache_clear()
+    run("E2E-K-01")
+    assert get_decision_history(ticket_id="E2E-K-01")[-1]["retrieval_k"] == 2
+
+
+def test_classify_crash_is_attributed_to_failed_node_not_a_provider(monkeypatch):
+    stub_pipeline(monkeypatch)
+
+    def boom(_ticket):
+        raise RuntimeError("simulated classify crash")
+
+    monkeypatch.setattr(nodes, "classify_ticket", boom)
+    run("E2E-CRASH-CLS")
+    row = get_decision_history(ticket_id="E2E-CRASH-CLS")[-1]
+    assert row["failed_node"] == "classify_node"
+    assert row["classification_provider"] is None
+    assert row["is_degraded"] == 1
+
+
+def test_classify_fallback_to_offline_is_attributed_to_offline_provider():
+    # no provider keys (conftest): the cascade falls back to the offline heuristic, no crash
+    SupportOrchestrator().process_ticket(
+        {"channel": "chat", "ticket_id": "E2E-OFFLINE", "message": "How do I rotate my API key?"},
+        run_id="RUN-E2E-OFFLINE",
+    )
+    row = get_decision_history(ticket_id="E2E-OFFLINE")[-1]
+    assert row["classification_provider"] == "offline_mock"
+    assert row["failed_node"] is None
+
+
+def test_retrieval_crash_is_distinguishable_from_empty_retrieval(monkeypatch):
+    stub_pipeline(monkeypatch)
+
+    def boom(query_text, top_k):
+        raise RuntimeError("simulated retrieval crash")
+
+    monkeypatch.setattr(nodes, "query_documents", boom)
+    result = run("E2E-CRASH-RET")
+    row = get_decision_history(ticket_id="E2E-CRASH-RET")[-1]
+    assert row["failed_node"] == "retrieval_node"
+    assert row["is_degraded"] == 1
+    assert row["retrieved_doc_ids"] == "[]"
+    assert "NODE_FAILURE: retrieval_node" in result.routing_reason
+
+
+def test_healthy_run_has_no_failed_node(monkeypatch):
+    stub_pipeline(monkeypatch)
+    run("E2E-OK")
+    assert get_decision_history(ticket_id="E2E-OK")[-1]["failed_node"] is None

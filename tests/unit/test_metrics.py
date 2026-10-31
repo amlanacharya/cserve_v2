@@ -1,5 +1,10 @@
+import csv
+
+import pytest
+
 from evaluation.metrics import compute_metrics, export_metrics_csv
 from src.audit.logger import AuditLogger
+from src.core.types import DISPOSITIONS, PROVIDERS, URGENCIES, sql_in_list
 
 
 def _record(tid, intent, conf, citations, top_score=0.9):
@@ -242,25 +247,141 @@ def test_pii_detection_counts_inbound_redactions(tmp_path):
     assert gov["pii_output_violation_count"] == 2
     assert gov["pii_redactions_total"] == 3
 
+# Schema as shipped before #16 (commit 7b95c4c^): has guardrail_violations, none of the later columns.
+_PRE_16_DDL = f"""
+CREATE TABLE decision_log (
+    id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id                TEXT    NOT NULL,
+    ticket_id             TEXT    NOT NULL,
+    channel               TEXT    NOT NULL CHECK (channel IN ('email','chat','docs_comment','forum')),
+    logged_at             TEXT    NOT NULL,
+    inferred_intent       TEXT    NOT NULL,
+    intent_confidence     REAL    NOT NULL CHECK (intent_confidence BETWEEN 0 AND 1),
+    intent_alternatives   TEXT    NOT NULL DEFAULT '{{}}',
+    urgency               TEXT    NOT NULL CHECK (urgency IN ({sql_in_list(URGENCIES)})),
+    top_retrieval_score   REAL    NOT NULL CHECK (top_retrieval_score BETWEEN 0 AND 1),
+    must_not_auto_respond INTEGER NOT NULL CHECK (must_not_auto_respond IN (0,1)),
+    routing_action        TEXT    NOT NULL CHECK (routing_action IN ('AUTO_RESPOND','ESCALATE')),
+    routing_reason        TEXT    NOT NULL,
+    guardrail_status      TEXT             CHECK (guardrail_status IS NULL OR guardrail_status IN ('PASSED','TRIPPED')),
+    final_disposition     TEXT    NOT NULL CHECK (final_disposition IN ({sql_in_list(DISPOSITIONS)})),
+    citations             TEXT    NOT NULL DEFAULT '[]',
+    provider_used         TEXT    NOT NULL CHECK (provider_used IN ({sql_in_list(PROVIDERS)})),
+    is_degraded           INTEGER NOT NULL CHECK (is_degraded IN (0,1)),
+    error_details         TEXT,
+    guardrail_violations  TEXT    NOT NULL DEFAULT '[]',
+    latency_ms           REAL    NOT NULL
+);
+CREATE TRIGGER decision_log_no_update BEFORE UPDATE ON decision_log
+BEGIN SELECT RAISE(ABORT, 'decision_log is append-only'); END;
+CREATE TRIGGER decision_log_no_delete BEFORE DELETE ON decision_log
+BEGIN SELECT RAISE(ABORT, 'decision_log is append-only'); END;
+"""
 
-def test_legacy_db_without_issue16_columns_is_migrated(tmp_path):
+
+def test_pre_16_database_is_migrated_and_legacy_rows_stay_distinguishable(tmp_path):
     import sqlite3
 
-    db = tmp_path / "old16.db"
-    AuditLogger(db).log_decision(_record("L1", "x", 0.9, []))
+    db = tmp_path / "pre16.db"
     conn = sqlite3.connect(str(db))
-    for col in ("retrieved_doc_ids", "classification_provider", "pii_redactions_count"):
-        conn.execute(f"ALTER TABLE decision_log DROP COLUMN {col}")
+    conn.executescript(_PRE_16_DDL)
+    conn.execute(
+        "INSERT INTO decision_log (run_id, ticket_id, channel, logged_at, inferred_intent,"
+        " intent_confidence, urgency, top_retrieval_score, must_not_auto_respond, routing_action,"
+        " routing_reason, final_disposition, provider_used, is_degraded, latency_ms)"
+        " VALUES ('RUN-M','L1','email','2026-01-01','x',0.9,'LOW',0.9,0,'AUTO_RESPOND','ok',"
+        "'AUTO_RESOLVED','groq',0,10.0)"
+    )
     conn.commit()
     conn.close()
+
     audit = AuditLogger(db)
     new = _record("L2", "x", 0.9, [])
-    new.update(retrieved_doc_ids=["DOC-A"], classification_provider="groq", pii_redactions_count=2)
+    new.update(
+        retrieved_doc_ids=["DOC-A"],
+        classification_provider="groq",
+        pii_redactions_count=2,
+        retrieval_k=4,
+        failed_node="retrieval_node",
+    )
     audit.log_decision(new)
     rows = {r["ticket_id"]: r for r in audit.get_decision_history()}
-    assert rows["L1"]["retrieved_doc_ids"] is None
-    assert rows["L1"]["classification_provider"] is None
+    for col in ("retrieved_doc_ids", "classification_provider", "retrieval_k", "failed_node"):
+        assert rows["L1"][col] is None, col
     assert rows["L1"]["pii_redactions_count"] == 0
     assert rows["L2"]["retrieved_doc_ids"] == '["DOC-A"]'
     assert rows["L2"]["classification_provider"] == "groq"
     assert rows["L2"]["pii_redactions_count"] == 2
+    assert rows["L2"]["retrieval_k"] == 4
+    assert rows["L2"]["failed_node"] == "retrieval_node"
+    # the migrated column keeps its CHECK constraint
+    bad = _record("L3", "x", 0.9, [])
+    bad["classification_provider"] = "not_a_provider"
+    with pytest.raises(sqlite3.IntegrityError):
+        audit.log_decision(bad)
+
+
+def test_precision_uses_k_recorded_with_the_run(tmp_path):
+    db = tmp_path / "rk.db"
+    r = _retrieved("T1", ["X", "A", "A"])
+    r["retrieval_k"] = 1  # run retrieved with k=1; the current setting (3) must not leak in
+    legacy = _retrieved("T2", ["X", "A", "A"])  # no recorded k -> falls back to the setting
+    audit = AuditLogger(db)
+    audit.log_decision(r)
+    audit.log_decision(legacy)
+    truths = [_truth("T1", "x", ["A"]), _truth("T2", "x", ["A"])]
+    tech = compute_metrics("RUN-M", db_path=db, input_tickets=truths)["technical"]
+    # T1: top-1 = [X] -> 0 ; T2: top-3 = [X, A, A] -> 2/3
+    assert tech["retrieval_precision_at_k"] == round((0 + 2 / 3) / 2, 4)
+    assert tech["retrieval_k"] == 3  # max of recorded k (1) and the legacy fallback (3)
+
+
+def test_retrieval_crash_is_excluded_from_precision_and_counted(tmp_path):
+    db = tmp_path / "rc.db"
+    crashed = _retrieved("T1", [])
+    crashed["failed_node"] = "retrieval_node"
+    empty = _retrieved("T2", [])  # genuinely nothing retrieved -> scores 0
+    good = _retrieved("T3", ["A"])
+    audit = AuditLogger(db)
+    for r in (crashed, empty, good):
+        audit.log_decision(r)
+    truths = [_truth(t, "x", ["A"]) for t in ("T1", "T2", "T3")]
+    tech = compute_metrics("RUN-M", db_path=db, input_tickets=truths)["technical"]
+    assert tech["retrieval_precision_at_k"] == 0.5  # (0 + 1) / 2; the crash is not a measurement
+    assert tech["retrieval_failed_count"] == 1
+
+
+def test_classify_crash_gets_its_own_provider_bucket(tmp_path):
+    db = tmp_path / "cc.db"
+    audit = AuditLogger(db)
+    crash = _record("C1", "unknown", 0.0, [])
+    crash.update(failed_node="classify_node", provider_used="offline_mock")
+    offline = _record("C2", "x", 0.4, [])
+    offline.update(classification_provider="offline_mock", provider_used="offline_mock")
+    for r in (crash, offline):
+        audit.log_decision(r)
+    truths = [_truth("C1", "x", []), _truth("C2", "x", [])]
+    per = compute_metrics("RUN-M", db_path=db, input_tickets=truths)["governance"]["per_provider"]
+    assert per["classify_failed"]["tickets"] == 1
+    assert per["offline_mock"]["tickets"] == 1
+    assert per["offline_mock"]["accuracy"] == 1.0
+
+
+def test_new_metric_keys_reach_csv(tmp_path):
+    db = tmp_path / "csv.db"
+    audit = AuditLogger(db)
+    r = _retrieved("T1", ["A"])
+    r.update(retrieval_k=2, pii_redactions_count=3, classification_provider="groq")
+    audit.log_decision(r)
+    report = compute_metrics("RUN-M", db_path=db, input_tickets=[_truth("T1", "x", ["A"])])
+    out = tmp_path / "metrics.csv"
+    export_metrics_csv(report, out)
+    with open(out, newline="", encoding="utf-8") as f:
+        values = {row["metric"]: row["value"] for row in csv.DictReader(f)}
+    assert values["technical_retrieval_k"] == "2"
+    assert values["technical_retrieval_precision_at_k"] == "1.0"
+    assert values["technical_retrieval_failed_count"] == "0"
+    assert values["governance_pii_inbound_redacted_count"] == "1"
+    assert values["governance_pii_output_violation_count"] == "0"
+    assert values["governance_pii_redactions_total"] == "3"
+    assert values["governance_per_provider_groq_tickets"] == "1"

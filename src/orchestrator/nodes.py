@@ -45,6 +45,7 @@ def retrieval_node(state: dict[str, Any]) -> dict[str, Any]:
     return {
         "retrieved_docs": chunks,
         "top_retrieval_score": top_score,
+        "retrieval_k": settings.top_k_passages,
     }
 
 
