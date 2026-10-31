@@ -8,6 +8,9 @@ from src.core.models import DocumentChunk
 # Spec 6.2: sections under ~40 tokens merge into the preceding sibling.
 MIN_SECTION_TOKENS = 40
 TOKENS_PER_WORD = 1.3
+# Spec 6.2: the standard corpus must chunk to 70-90 chunks.
+MIN_CHUNKS = 70
+MAX_CHUNKS = 90
 
 
 def slugify(text: str) -> str:
@@ -99,7 +102,7 @@ def chunk_article(doc_dict: dict[str, Any]) -> list[DocumentChunk]:
         first_h, first_l, first_t = sections[0]
         sections[0] = (first_h, first_l, ("\n".join(preamble).strip() + "\n\n" + first_t).strip())
 
-    # Merge any section under 40 words into its preceding sibling
+    # Merge any section under ~40 tokens (words * TOKENS_PER_WORD) into its preceding sibling
     merged: list[tuple[str, int, str]] = []
     for h, lvl, t in sections:
         if merged and len(t.split()) * TOKENS_PER_WORD < MIN_SECTION_TOKENS:
@@ -142,7 +145,7 @@ def chunk_article(doc_dict: dict[str, Any]) -> list[DocumentChunk]:
 def chunk_documentation(docs_path: str | Path) -> list[DocumentChunk]:
     """
     Loads all documentation articles from JSON file and chunks them.
-    Asserts chunk count falls within 70-90 chunks for the standard corpus.
+    Asserts chunk count falls within MIN_CHUNKS-MAX_CHUNKS for the standard corpus.
     """
     path = Path(docs_path)
     if not path.exists():
@@ -155,8 +158,8 @@ def chunk_documentation(docs_path: str | Path) -> list[DocumentChunk]:
     for doc in docs:
         all_chunks.extend(chunk_article(doc))
 
-    if not 70 <= len(all_chunks) <= 90:
+    if not MIN_CHUNKS <= len(all_chunks) <= MAX_CHUNKS:
         raise ValueError(
-            f"Chunk count {len(all_chunks)} outside required 70-90 bounds (spec 6.2)"
+            f"Chunk count {len(all_chunks)} outside required {MIN_CHUNKS}-{MAX_CHUNKS} bounds (spec 6.2)"
         )
     return all_chunks

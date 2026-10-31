@@ -14,7 +14,7 @@ from src.orchestrator.nodes import (
     retrieval_node,
     routing_node,
 )
-from src.orchestrator.state import AgentState, RunSnapshot, initial_state
+from src.orchestrator.state import AgentState, RunSnapshot, elapsed_ms, initial_state
 
 
 def route_decision(state: dict[str, Any]) -> str:
@@ -95,5 +95,4 @@ class SupportOrchestrator:
             initial_state(run_id_val, raw_ticket, start_time, self.db_path)
         )
 
-        elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
-        return RunSnapshot.from_state(final_state).to_result(raw_ticket, elapsed_ms)
+        return RunSnapshot.from_state(final_state).to_result(raw_ticket, elapsed_ms(start_time))

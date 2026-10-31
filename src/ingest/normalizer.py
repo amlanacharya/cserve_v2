@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 from src.core.models import CanonicalTicket
-from src.core.patterns import (  # noqa: F401  (re-exported for existing callers)
+from src.core.patterns import (
     API_KEY_PATTERN,
     BEARER_TOKEN_PATTERN,
     CC_CANDIDATE_PATTERN,
@@ -11,8 +11,13 @@ from src.core.patterns import (  # noqa: F401  (re-exported for existing callers
     HTML_TAG_PATTERN,
     PHONE_PATTERN,
     WHITESPACE_PATTERN,
-    is_luhn_valid,
+    is_card_number,
+    is_phone_number,
 )
+
+# created_at feeds the classification cache key (sha256 of the canonical ticket JSON), so a
+# missing/unparseable timestamp must map to a fixed value, never datetime.now().
+MISSING_TIMESTAMP = datetime(1970, 1, 1, tzinfo=timezone.utc)
 
 
 def redact_pii(text: str) -> str:
@@ -29,10 +34,7 @@ def redact_pii(text: str) -> str:
     # Redact Credit Card numbers with Luhn check
     def replace_cc(match: re.Match) -> str:
         matched_str = match.group(0)
-        digits_only = re.sub(r"\D", "", matched_str)
-        if 13 <= len(digits_only) <= 19 and is_luhn_valid(digits_only):
-            return "[REDACTED_CC]"
-        return matched_str
+        return "[REDACTED_CC]" if is_card_number(matched_str) else matched_str
 
     text = CC_CANDIDATE_PATTERN.sub(replace_cc, text)
 
@@ -42,10 +44,7 @@ def redact_pii(text: str) -> str:
     # Redact Phones (only if matches phone pattern and length reasonable)
     def replace_phone(match: re.Match) -> str:
         m_str = match.group(0).strip()
-        digits_only = re.sub(r"\D", "", m_str)
-        if len(digits_only) >= 10:
-            return "[REDACTED_PHONE]"
-        return m_str
+        return "[REDACTED_PHONE]" if is_phone_number(m_str) else m_str
 
     text = PHONE_PATTERN.sub(replace_phone, text)
 
@@ -64,7 +63,7 @@ def clean_text(text: str) -> str:
 
 
 def parse_timestamp(ts_value: Any) -> datetime:
-    """Parse various timestamp representations into UTC datetime."""
+    """Parse various timestamp representations into UTC datetime (MISSING_TIMESTAMP if absent/invalid)."""
     if isinstance(ts_value, datetime):
         if ts_value.tzinfo is None:
             return ts_value.replace(tzinfo=timezone.utc)
@@ -81,7 +80,7 @@ def parse_timestamp(ts_value: Any) -> datetime:
         except ValueError:
             pass
 
-    return datetime.now(timezone.utc)
+    return MISSING_TIMESTAMP
 
 
 def normalize_ticket(raw_payload: dict[str, Any]) -> CanonicalTicket:

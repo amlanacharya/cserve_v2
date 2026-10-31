@@ -101,3 +101,45 @@ def test_classification_caching(tmp_path):
     cache.set(thash, mock_result)
     assert cache.get(thash) == mock_result
 
+
+
+def _classify_with(raw, provider="groq"):
+    from unittest.mock import patch
+    ticket = CanonicalTicket(ticket_id="INTENT-1", channel="chat", body="something " + raw[:5])
+    with patch("src.classify.classifier.call_cascade", return_value=(raw, provider)):
+        return classify_ticket(ticket)
+
+
+def test_model_intent_outside_vocabulary_coerced_to_unknown(isolated_classification_cache):
+    raw = json.dumps({"inferred_intent": "auth_issue", "urgency": "LOW", "confidence": 0.9})
+    assert _classify_with(raw)["inferred_intent"] == "unknown"
+
+
+def test_model_intent_in_vocabulary_kept(isolated_classification_cache):
+    raw = json.dumps({"inferred_intent": "billing_query", "urgency": "LOW", "confidence": 0.9})
+    assert _classify_with(raw)["inferred_intent"] == "billing_query"
+
+
+def test_unparseable_response_is_unknown(isolated_classification_cache):
+    assert _classify_with("not json at all")["inferred_intent"] == "unknown"
+
+
+def test_heuristic_unclassifiable_text_is_unclear_request():
+    from src.classify.heuristic import offline_heuristic_classification
+    out = json.loads(offline_heuristic_classification("zzz qqq"))
+    assert out["inferred_intent"] == "unclear_request"
+
+
+def test_heuristic_only_emits_vocabulary_labels():
+    from src.classify.heuristic import offline_heuristic_classification
+    from src.core.types import INTENT_LABELS
+    for text in ("api key", "invoice", "rate limit", "deploy", "zzz", "okta sso", "breach"):
+        assert json.loads(offline_heuristic_classification(text))["inferred_intent"] in INTENT_LABELS
+
+
+def test_intent_vocabulary_has_21_labels_in_prompt():
+    from src.core.types import INTENT_LABELS
+    from src.generation.prompts import CLASSIFICATION_SYSTEM_PROMPT
+    assert len(INTENT_LABELS) == 21 and "unknown" not in INTENT_LABELS
+    for label in INTENT_LABELS:
+        assert f"- {label}\n" in CLASSIFICATION_SYSTEM_PROMPT

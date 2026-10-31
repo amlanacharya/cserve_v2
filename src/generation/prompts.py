@@ -1,5 +1,7 @@
 import html
 
+from src.core.types import INTENT_LABELS
+
 CLASSIFICATION_SYSTEM_PROMPT = """You are the CloudServe Support Ticket Classifier.
 Your task is to analyze an incoming customer support inquiry and classify its intent and urgency, providing a calibrated confidence score.
 
@@ -17,34 +19,14 @@ You must respond ONLY with a valid JSON object strictly matching this schema:
 }
 
 Known intents include:
-- api_key_issue
-- authentication_failure
-- account_access
-- sso_configuration
-- billing_query
-- quota_or_overage
-- deployment_failure
-- rollback_request
-- rate_limit
-- performance_degradation
-- database_issue
-- security_incident
-- compliance_request
-- configuration_help
-- integration_help
-- webhook_issue
-- data_residency
-- data_export
-- feature_request
-- onboarding
-- unclear_request
+__INTENT_LIST__
 
 Urgency guidelines:
 - CRITICAL: Production down, complete service outage, active security breach.
 - HIGH: Blocking errors for multiple users, impending deployment deadlines, major functional failures.
 - MEDIUM: Standard operational issues, questions on configuration, single user blockage.
 - LOW: General inquiries, feature requests, cosmetic feedback, minor documentation questions.
-"""
+""".replace("__INTENT_LIST__", "\n".join(f"- {label}" for label in INTENT_LABELS))
 
 GENERATION_SYSTEM_PROMPT = """You are CloudServe Support AI, an expert technical assistant.
 Your task is to provide accurate, concise, professional support responses grounded strictly in the provided documentation.

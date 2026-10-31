@@ -291,7 +291,10 @@ Append-only. A surrogate key allows the same `ticket_id` to be reprocessed acros
 | `provider_used` | `TEXT` | No | `CHECK` in `groq`, `gemini`, `offline_mock` | Provider tier used. |
 | `is_degraded` | `INTEGER` | No | `CHECK` in 0, 1 | Safe-degradation flag. |
 | `error_details` | `TEXT` | Yes | n/a | Diagnostic if an exception was caught. |
+| `guardrail_violations` | `TEXT` | No | JSON array, default `'[]'` | Violation diagnoses when a guardrail tripped. |
 | `latency_ms` | `REAL` | No | n/a | End-to-end latency. |
+
+**Migration note**: `guardrail_violations` was added after the first release of this table. `AuditLogger._init_db` adds it to a pre-existing database with `ALTER TABLE decision_log ADD COLUMN guardrail_violations TEXT NOT NULL DEFAULT '[]'` when `PRAGMA table_info` shows it missing; rows written earlier read back as `[]`. The append-only triggers block `UPDATE` and `DELETE` only, so the `ALTER` is unaffected.
 
 ```sql
 CREATE TABLE IF NOT EXISTS decision_log (
@@ -315,6 +318,7 @@ CREATE TABLE IF NOT EXISTS decision_log (
     provider_used         TEXT    NOT NULL CHECK (provider_used IN ('groq','gemini','offline_mock')),
     is_degraded           INTEGER NOT NULL CHECK (is_degraded IN (0,1)),
     error_details         TEXT,
+    guardrail_violations  TEXT    NOT NULL DEFAULT '[]',
     latency_ms            REAL    NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_decision_log_ticket ON decision_log (ticket_id);
@@ -646,7 +650,7 @@ The implementation is partitioned into six sequential, incremental phases aligne
         *   Tier 1 (Primary): Groq API (`llama-3.3-70b-versatile`) via OpenAI SDK transport.
         *   Tier 2 (Secondary): Google Gemini API (`gemini-2.5-flash`) via `httpx.Client`.
         *   Retry logic: Exponential backoff with full jitter on HTTP 429 ($b_0 = 1.0\text{s}$, $b_{\max} = 8.0\text{s}$, max 1 retry).
-        *   Tier 3 (Tertiary Offline Mock): Local Deterministic Heuristic Engine. Matches keywords to intent (`billing`, `auth`, `deploy`, `rate_limit`, `general`), retrieves local ChromaDB chunks, sets `must_not_auto_respond = True`, routes to `ESCALATE`, and never generates draft responses.
+        *   Tier 3 (Tertiary Offline Mock): Local Deterministic Heuristic Engine. Matches keywords to one of the 21 dataset intent labels (e.g. `billing_query`, `authentication_failure`, `deployment_failure`, `rate_limit`), defaulting to `unclear_request` when nothing matches, retrieves local ChromaDB chunks, sets `must_not_auto_respond = True`, routes to `ESCALATE`, and never generates draft responses.
     *   `[Create] src/generation/generator.py`: Orchestrate prompt compilation, cascade query, and citation extraction.
     *   `[Create] src/guardrails/__init__.py`: Export `evaluate_guardrails`.
     *   `[Create] src/guardrails/pii.py`: Scan drafts for email, phone, bearer tokens, API keys, and credit cards with Luhn checksum validation.

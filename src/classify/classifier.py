@@ -4,7 +4,14 @@ import re
 from typing import Any
 from src.classify.cache import compute_ticket_hash, get_classification_cache
 from src.core.models import CanonicalTicket
-from src.core.types import URGENCIES
+from src.core.types import (
+    ESCALATION_URGENCY,
+    INTENT_LABELS,
+    OFFLINE_PROVIDER,
+    UNCLEAR_INTENT,
+    UNKNOWN_INTENT,
+    URGENCIES,
+)
 from src.generation.cascade import call_cascade
 from src.generation.prompts import (
     CLASSIFICATION_SYSTEM_PROMPT,
@@ -66,7 +73,10 @@ def classify_ticket(ticket: CanonicalTicket) -> dict[str, Any]:
     # 3. Parse JSON
     try:
         parsed = extract_json_from_llm_output(raw_response)
-        inferred_intent = str(parsed.get("inferred_intent", "general_inquiry")).strip()
+        inferred_intent = str(parsed.get("inferred_intent", UNCLEAR_INTENT)).strip()
+        if inferred_intent not in INTENT_LABELS:
+            logger.warning(f"Model returned out-of-vocabulary intent {inferred_intent!r}; coercing to unknown.")
+            inferred_intent = UNKNOWN_INTENT
         intent_alternatives = dict(parsed.get("intent_alternatives", {}))
         urgency = str(parsed.get("urgency", "MEDIUM")).strip().upper()
         if urgency not in URGENCIES:
@@ -75,13 +85,13 @@ def classify_ticket(ticket: CanonicalTicket) -> dict[str, Any]:
         confidence = max(0.0, min(1.0, confidence))
     except Exception as e:
         logger.warning(f"Classification JSON parsing failed: {e}. Using fallback defaults.")
-        inferred_intent = "unknown"
+        inferred_intent = UNKNOWN_INTENT
         intent_alternatives = {}
-        urgency = "HIGH"
+        urgency = ESCALATION_URGENCY
         confidence = 0.0
 
     # Offline mock always vetoes auto response
-    if provider_used == "offline_mock":
+    if provider_used == OFFLINE_PROVIDER:
         safety_veto = True
 
     result = {
@@ -94,7 +104,7 @@ def classify_ticket(ticket: CanonicalTicket) -> dict[str, Any]:
     }
 
     # Offline fail-safe results must never be replayed after providers recover
-    if provider_used != "offline_mock":
+    if provider_used != OFFLINE_PROVIDER:
         cache.set(ticket_hash, result)
     return result
 

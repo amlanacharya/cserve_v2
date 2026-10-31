@@ -13,6 +13,17 @@ HTML_TAG_PATTERN = re.compile(r"<[^>]+>")
 WHITESPACE_PATTERN = re.compile(r"\s+")
 
 
+def is_card_number(candidate: str) -> bool:
+    """True if the matched text is a 13-19 digit, Luhn-valid card number."""
+    digits = re.sub(r"\D", "", candidate)
+    return 13 <= len(digits) <= 19 and is_luhn_valid(digits)
+
+
+def is_phone_number(candidate: str) -> bool:
+    """True if the matched text carries at least 10 digits (PHONE_PATTERN also matches shorter runs)."""
+    return len(re.sub(r"\D", "", candidate)) >= 10
+
+
 def is_luhn_valid(candidate: str) -> bool:
     digits = [int(c) for c in candidate if c.isdigit()]
     if len(digits) < 13 or len(digits) > 19:

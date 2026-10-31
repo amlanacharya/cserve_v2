@@ -1,7 +1,9 @@
 import json
+import time
 from pathlib import Path
 import pytest
-from src.ingest.normalizer import normalize_ticket, redact_pii, clean_text, is_luhn_valid
+from src.core.patterns import is_luhn_valid
+from src.ingest.normalizer import normalize_ticket, redact_pii, clean_text
 
 
 def test_email_ingestion():
@@ -120,3 +122,37 @@ def test_validation_tickets_ingestion():
         assert canonical.channel in ("email", "chat", "docs_comment", "forum")
         assert canonical.body is not None
         assert isinstance(canonical.metadata, dict)
+
+
+RAW_NO_TS = {"channel": "chat", "ticket_id": "NOTS-1", "message": "How do I rotate my API key?"}
+
+
+def test_timestampless_ticket_has_stable_cache_key():
+    from src.classify.cache import compute_ticket_hash
+
+    first = normalize_ticket(dict(RAW_NO_TS))
+    time.sleep(0.05)  # outlast the wall-clock resolution so a now()-based fallback would differ
+    assert compute_ticket_hash(first) == compute_ticket_hash(normalize_ticket(dict(RAW_NO_TS)))
+
+
+def test_cache_key_still_distinguishes_explicit_timestamps():
+    from src.classify.cache import compute_ticket_hash
+
+    a = normalize_ticket({**RAW_NO_TS, "created_at": "2026-01-01T00:00:00Z"})
+    b = normalize_ticket({**RAW_NO_TS, "created_at": "2026-01-02T00:00:00Z"})
+    assert compute_ticket_hash(a) != compute_ticket_hash(b)
+
+
+def test_identical_timestampless_tickets_hit_classification_cache(isolated_classification_cache):
+    import json
+    from unittest.mock import patch
+    from src.classify.classifier import classify_ticket
+
+    live = json.dumps(
+        {"inferred_intent": "api_key_issue", "intent_alternatives": {}, "urgency": "LOW", "confidence": 0.9}
+    )
+    with patch("src.classify.classifier.call_cascade", return_value=(live, "groq")) as m:
+        classify_ticket(normalize_ticket(dict(RAW_NO_TS)))
+        time.sleep(0.05)
+        classify_ticket(normalize_ticket(dict(RAW_NO_TS)))
+    assert m.call_count == 1

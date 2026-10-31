@@ -3,6 +3,7 @@ import logging
 import traceback
 from typing import Any, Callable
 from src.core.models import CanonicalTicket
+from src.core.types import ESCALATION_URGENCY, OFFLINE_PROVIDER, UNKNOWN_INTENT
 
 logger = logging.getLogger(__name__)
 
@@ -26,12 +27,13 @@ def _normalize_fallback(state: dict[str, Any], exc: Exception) -> dict[str, Any]
 _FALLBACKS: dict[str, Callable[[dict[str, Any], Exception], dict[str, Any]]] = {
     "normalize_node": _normalize_fallback,
     "classify_node": lambda s, e: {
-        "inferred_intent": "unknown",
+        "inferred_intent": UNKNOWN_INTENT,
         "confidence": 0.0,
         "intent_alternatives": {},
-        "urgency": "HIGH",
+        "urgency": ESCALATION_URGENCY,
         "must_not_auto_respond": True,
-        "provider_used": "offline_mock",
+        "provider_used": OFFLINE_PROVIDER,
+        "failed_node": "classify_node",
     },
     "retrieval_node": lambda s, e: {"retrieved_docs": [], "top_retrieval_score": 0.0},
     "routing_node": lambda s, e: {
@@ -52,7 +54,7 @@ _FALLBACKS: dict[str, Callable[[dict[str, Any], Exception], dict[str, Any]]] = {
 }
 
 
-def safe_node(node_name: str, fallback_action: str = ""):
+def safe_node(node_name: str):
     """
     Decorator that catches all unhandled exceptions within a LangGraph node,
     records the failure in state and error logs, and sets safe default values

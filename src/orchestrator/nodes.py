@@ -1,5 +1,4 @@
 import sys
-import time
 from typing import Any
 from src.audit.logger import log_decision
 from src.classify.classifier import classify_ticket
@@ -7,7 +6,7 @@ from src.core.config import get_settings
 from src.generation.generator import generate_response
 from src.guardrails import evaluate_guardrails
 from src.ingest.normalizer import normalize_ticket
-from src.orchestrator.state import RunSnapshot
+from src.orchestrator.state import RunSnapshot, elapsed_ms
 from src.orchestrator.wrappers import safe_node
 from src.retrieval.store import query_documents
 from src.routing.router import evaluate_route
@@ -56,6 +55,7 @@ def routing_node(state: dict[str, Any]) -> dict[str, Any]:
         urgency=state["urgency"],
         must_not_auto_respond=state["must_not_auto_respond"],
         provider_used=state.get("provider_used"),
+        node_failure=state.get("failed_node"),
     )
     return {
         "routing_action": action,
@@ -110,7 +110,6 @@ def guardrails_node(state: dict[str, Any]) -> dict[str, Any]:
 
 @safe_node(node_name="escalate_node")
 def escalate_node(state: dict[str, Any]) -> dict[str, Any]:
-    _ = state["canonical_ticket"]
     snap = RunSnapshot.from_state(state)
     disp = snap.final_disposition if snap.was_set("final_disposition") else None
 
@@ -132,12 +131,6 @@ def escalate_node(state: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _elapsed_ms(started_at: float | None) -> float:
-    if started_at is None:
-        return 0.0
-    return round((time.perf_counter() - started_at) * 1000, 2)
-
-
 @safe_node(node_name="audit_node")
 def audit_node(state: dict[str, Any]) -> dict[str, Any]:
     snap = RunSnapshot.from_state(state)
@@ -145,7 +138,7 @@ def audit_node(state: dict[str, Any]) -> dict[str, Any]:
     if not ticket:
         return {}
 
-    record = snap.to_audit_record(_elapsed_ms(snap.started_at))
+    record = snap.to_audit_record(elapsed_ms(snap.started_at))
     try:
         log_decision(record, db_path=state.get("db_path"))
     except Exception as e:
