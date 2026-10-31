@@ -30,6 +30,35 @@ def extract_retry_after(headers: Any, cap: float) -> float | None:
     return None
 
 
+def _retryable_response(exc: Exception) -> Any:
+    """Returns the HTTP response (or None) if exc is a timeout, 5xx or 429; else False."""
+    if isinstance(exc, httpx.TimeoutException) or type(exc).__name__ == "APITimeoutError":
+        return None
+    response = getattr(exc, "response", None)
+    status = getattr(response, "status_code", None)
+    if status is not None and (status == 429 or status >= 500):
+        return response
+    return False
+
+
+def _backoff_if_retryable(provider: str, exc: Exception, attempt: int, settings: Any) -> bool:
+    """Sleeps (Retry-After or jittered backoff) and returns True if the failure may be retried."""
+    if attempt >= settings.provider_max_retries:
+        return False
+    response = _retryable_response(exc)
+    if response is False:
+        return False
+    retry_after = extract_retry_after(getattr(response, "headers", None), settings.backoff_cap)
+    sleep_time = (
+        retry_after
+        if retry_after is not None
+        else compute_jittered_backoff(attempt, settings.backoff_base, settings.backoff_cap)
+    )
+    logger.warning(f"{provider} retryable failure ({exc}). Backing off {sleep_time:.2f}s (attempt {attempt+1})")
+    time.sleep(sleep_time)
+    return True
+
+
 def offline_heuristic_classification(prompt_text: str) -> str:
     """Deterministic local keyword matching for intent and urgency."""
     text = prompt_text.lower()
@@ -108,6 +137,7 @@ def call_cascade(
             base_url=settings.groq_base_url,
             api_key=settings.groq_api_key,
             timeout=settings.provider_request_timeout,
+            max_retries=0,  # retry budget is ours (spec 1); no hidden SDK retries
         )
 
         for attempt in range(settings.provider_max_retries + 1):
@@ -123,19 +153,7 @@ def call_cascade(
                 text = response.choices[0].message.content or ""
                 return text.strip(), "groq"
             except Exception as e:
-                err_str = str(e).lower()
-                is_rate_limit = "429" in err_str or "rate limit" in err_str
-                if is_rate_limit and attempt < settings.provider_max_retries:
-                    retry_after = None
-                    if hasattr(e, "response") and hasattr(e.response, "headers"):
-                        retry_after = extract_retry_after(e.response.headers, settings.backoff_cap)
-                    sleep_time = (
-                        retry_after
-                        if retry_after is not None
-                        else compute_jittered_backoff(attempt, settings.backoff_base, settings.backoff_cap)
-                    )
-                    logger.warning(f"Groq 429 rate limit. Backing off {sleep_time:.2f}s (attempt {attempt+1})")
-                    time.sleep(sleep_time)
+                if _backoff_if_retryable("Groq", e, attempt, settings):
                     continue
                 logger.warning(f"Groq Tier 1 failed: {e}. Cascading to Tier 2...")
                 break
@@ -159,17 +177,6 @@ def call_cascade(
             try:
                 with httpx.Client(timeout=settings.provider_request_timeout) as http_client:
                     resp = http_client.post(gemini_url, json=gemini_payload)
-                    if resp.status_code == 429 and attempt < settings.provider_max_retries:
-                        retry_after = extract_retry_after(resp.headers, settings.backoff_cap)
-                        sleep_time = (
-                            retry_after
-                            if retry_after is not None
-                            else compute_jittered_backoff(attempt, settings.backoff_base, settings.backoff_cap)
-                        )
-                        logger.warning(f"Gemini 429 rate limit. Backing off {sleep_time:.2f}s")
-                        time.sleep(sleep_time)
-                        continue
-
                     resp.raise_for_status()
                     data = resp.json()
                     candidates = data.get("candidates", [])
@@ -178,6 +185,8 @@ def call_cascade(
                         if parts and "text" in parts[0]:
                             return parts[0]["text"].strip(), "gemini"
             except Exception as e:
+                if _backoff_if_retryable("Gemini", e, attempt, settings):
+                    continue
                 logger.warning(f"Gemini Tier 2 failed: {e}. Cascading to Tier 3...")
                 break
 
