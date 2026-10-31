@@ -20,35 +20,53 @@ from src.core.patterns import (
 MISSING_TIMESTAMP = datetime(1970, 1, 1, tzinfo=timezone.utc)
 
 
-def redact_pii(text: str) -> str:
-    """Scrub sensitive credentials and PII from text."""
+def redact_pii_counted(text: str) -> tuple[str, int]:
+    """Scrub sensitive credentials and PII from text; also return how many items were redacted."""
     if not text:
-        return text
+        return text, 0
+
+    count = 0
 
     # Redact API keys first
-    text = API_KEY_PATTERN.sub("[REDACTED_API_KEY]", text)
+    text, n = API_KEY_PATTERN.subn("[REDACTED_API_KEY]", text)
+    count += n
 
     # Redact Bearer tokens
-    text = BEARER_TOKEN_PATTERN.sub("Bearer [REDACTED_TOKEN]", text)
+    text, n = BEARER_TOKEN_PATTERN.subn("Bearer [REDACTED_TOKEN]", text)
+    count += n
 
     # Redact Credit Card numbers with Luhn check
     def replace_cc(match: re.Match) -> str:
+        nonlocal count
         matched_str = match.group(0)
-        return "[REDACTED_CC]" if is_card_number(matched_str) else matched_str
+        if is_card_number(matched_str):
+            count += 1
+            return "[REDACTED_CC]"
+        return matched_str
 
     text = CC_CANDIDATE_PATTERN.sub(replace_cc, text)
 
     # Redact Emails
-    text = EMAIL_PATTERN.sub("[REDACTED_EMAIL]", text)
+    text, n = EMAIL_PATTERN.subn("[REDACTED_EMAIL]", text)
+    count += n
 
     # Redact Phones (only if matches phone pattern and length reasonable)
     def replace_phone(match: re.Match) -> str:
+        nonlocal count
         m_str = match.group(0).strip()
-        return "[REDACTED_PHONE]" if is_phone_number(m_str) else m_str
+        if is_phone_number(m_str):
+            count += 1
+            return "[REDACTED_PHONE]"
+        return m_str
 
     text = PHONE_PATTERN.sub(replace_phone, text)
 
-    return text
+    return text, count
+
+
+def redact_pii(text: str) -> str:
+    """Scrub sensitive credentials and PII from text."""
+    return redact_pii_counted(text)[0]
 
 
 def clean_text(text: str) -> str:
@@ -84,9 +102,15 @@ def parse_timestamp(ts_value: Any) -> datetime:
 
 
 def normalize_ticket(raw_payload: dict[str, Any]) -> CanonicalTicket:
+    """Normalize a raw payload into a CanonicalTicket (see normalize_ticket_with_stats)."""
+    return normalize_ticket_with_stats(raw_payload)[0]
+
+
+def normalize_ticket_with_stats(raw_payload: dict[str, Any]) -> tuple[CanonicalTicket, int]:
     """
     Ingests and normalizes raw ticket payloads across email, chat, docs_comment, and forum channels.
-    Redacts inbound PII and enforces the CanonicalTicket schema.
+    Redacts inbound PII and enforces the CanonicalTicket schema. Returns the ticket and the
+    number of inbound PII/credential items redacted from subject and body (audit: pii_redactions_count).
     """
     # 1. Determine channel
     channel = raw_payload.get("channel", "email").lower().strip()
@@ -153,11 +177,12 @@ def normalize_ticket(raw_payload: dict[str, Any]) -> CanonicalTicket:
 
     # 4. Clean text and redact inbound PII
     cleaned_body = clean_text(body_raw)
-    sanitized_body = redact_pii(cleaned_body)
+    sanitized_body, redactions = redact_pii_counted(cleaned_body)
 
     if subject:
         subject = clean_text(subject)
-        subject = redact_pii(subject)
+        subject, subject_redactions = redact_pii_counted(subject)
+        redactions += subject_redactions
 
     # 5. Extract timestamp
     raw_ts = (
@@ -167,7 +192,7 @@ def normalize_ticket(raw_payload: dict[str, Any]) -> CanonicalTicket:
     )
     created_at = parse_timestamp(raw_ts)
 
-    return CanonicalTicket(
+    ticket = CanonicalTicket(
         ticket_id=ticket_id,
         channel=channel,  # type: ignore[arg-type]
         subject=subject,
@@ -176,4 +201,5 @@ def normalize_ticket(raw_payload: dict[str, Any]) -> CanonicalTicket:
         created_at=created_at,
         metadata=metadata,
     )
+    return ticket, redactions
 

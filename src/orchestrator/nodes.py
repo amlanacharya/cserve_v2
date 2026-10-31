@@ -5,7 +5,7 @@ from src.classify.classifier import classify_ticket
 from src.core.config import get_settings
 from src.generation.generator import generate_response
 from src.guardrails import evaluate_guardrails
-from src.ingest.normalizer import normalize_ticket
+from src.ingest.normalizer import normalize_ticket_with_stats
 from src.orchestrator.state import RunSnapshot, elapsed_ms
 from src.orchestrator.wrappers import safe_node
 from src.retrieval.store import query_documents
@@ -15,8 +15,8 @@ from src.routing.router import evaluate_route
 @safe_node(node_name="normalize_node")
 def normalize_node(state: dict[str, Any]) -> dict[str, Any]:
     raw_payload = state.get("raw_ticket", {})
-    canonical = normalize_ticket(raw_payload)
-    return {"canonical_ticket": canonical}
+    canonical, redactions = normalize_ticket_with_stats(raw_payload)
+    return {"canonical_ticket": canonical, "pii_redactions_count": redactions}
 
 
 @safe_node(node_name="classify_node")
@@ -30,6 +30,7 @@ def classify_node(state: dict[str, Any]) -> dict[str, Any]:
         "confidence": cls_res["confidence"],
         "must_not_auto_respond": cls_res["must_not_auto_respond"],
         "provider_used": cls_res["provider_used"],
+        "classification_provider": cls_res["provider_used"],
     }
 
 

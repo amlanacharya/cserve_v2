@@ -32,6 +32,9 @@ CREATE TABLE IF NOT EXISTS decision_log (
     is_degraded           INTEGER NOT NULL CHECK (is_degraded IN (0,1)),
     error_details         TEXT,
     guardrail_violations  TEXT    NOT NULL DEFAULT '[]',
+    retrieved_doc_ids     TEXT,
+    classification_provider TEXT   CHECK (classification_provider IS NULL OR classification_provider IN (@PROVIDERS@)),
+    pii_redactions_count  INTEGER NOT NULL DEFAULT 0,
     latency_ms           REAL    NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_decision_log_ticket ON decision_log (ticket_id);
@@ -49,6 +52,20 @@ DDL_STATEMENTS = (
     .replace("@DISPOSITIONS@", sql_in_list(DISPOSITIONS))
     .replace("@PROVIDERS@", sql_in_list(PROVIDERS))
 )
+
+# Columns added after the first release; _init_db ALTERs them into pre-existing databases.
+# retrieved_doc_ids / classification_provider are nullable so legacy rows stay distinguishable
+# from "nothing retrieved" / "classified by <provider>" (metrics skip or fall back on NULL).
+_ADDITIVE_COLUMNS = {
+    "guardrail_violations": "TEXT NOT NULL DEFAULT '[]'",
+    "retrieved_doc_ids": "TEXT",
+    "classification_provider": (
+        "TEXT CHECK (classification_provider IS NULL OR classification_provider IN ("
+        + sql_in_list(PROVIDERS)
+        + "))"
+    ),
+    "pii_redactions_count": "INTEGER NOT NULL DEFAULT 0",
+}
 
 _DB_LOCK = threading.Lock()
 
@@ -72,10 +89,9 @@ class AuditLogger:
             with self._get_connection() as conn:
                 conn.executescript(DDL_STATEMENTS)
                 existing = {r[1] for r in conn.execute("PRAGMA table_info(decision_log)")}
-                if "guardrail_violations" not in existing:
-                    conn.execute(
-                        "ALTER TABLE decision_log ADD COLUMN guardrail_violations TEXT NOT NULL DEFAULT '[]'"
-                    )
+                for column, definition in _ADDITIVE_COLUMNS.items():
+                    if column not in existing:
+                        conn.execute(f"ALTER TABLE decision_log ADD COLUMN {column} {definition}")
                 conn.commit()
 
     def log_decision(self, record: dict[str, Any]) -> None:
@@ -96,14 +112,20 @@ class AuditLogger:
         if not isinstance(violations, str):
             violations = json.dumps(list(violations))
 
+        retrieved = record.get("retrieved_doc_ids")
+        if retrieved is not None and not isinstance(retrieved, str):
+            retrieved = json.dumps(list(retrieved))
+        class_provider = record.get("classification_provider")
+
         sql = """
         INSERT INTO decision_log (
             run_id, ticket_id, channel, logged_at, inferred_intent,
             intent_confidence, intent_alternatives, urgency, top_retrieval_score,
             must_not_auto_respond, routing_action, routing_reason, guardrail_status,
             final_disposition, citations, provider_used, is_degraded, error_details,
-            guardrail_violations, latency_ms
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            guardrail_violations, retrieved_doc_ids, classification_provider,
+            pii_redactions_count, latency_ms
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         params = (
             str(record["run_id"]),
@@ -125,6 +147,9 @@ class AuditLogger:
             1 if record.get("is_degraded") else 0,
             str(record.get("error_details")) if record.get("error_details") else None,
             violations,
+            retrieved,
+            str(class_provider) if class_provider else None,
+            int(record.get("pii_redactions_count") or 0),
             float(record.get("latency_ms", 0.0)),
         )
 

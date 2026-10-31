@@ -156,3 +156,25 @@ def test_identical_timestampless_tickets_hit_classification_cache(isolated_class
         time.sleep(0.05)
         classify_ticket(normalize_ticket(dict(RAW_NO_TS)))
     assert m.call_count == 1
+
+
+def test_redact_pii_counted_counts_each_redaction():
+    from src.ingest.normalizer import redact_pii_counted
+
+    key = "cs_live_" + "a" * 32
+    text = f"Mail jane@example.com, card 4111 1111 1111 1111, key {key}, order 1234567"
+    out, n = redact_pii_counted(text)
+    assert n == 3  # email, Luhn-valid card, api key; a short digit run is untouched
+    assert "[REDACTED_EMAIL]" in out and "[REDACTED_CC]" in out and "[REDACTED_API_KEY]" in out
+    assert redact_pii_counted("nothing sensitive here") == ("nothing sensitive here", 0)
+
+
+def test_normalize_ticket_with_stats_counts_subject_and_body():
+    from src.ingest.normalizer import normalize_ticket_with_stats
+
+    ticket, n = normalize_ticket_with_stats(
+        {"channel": "email", "ticket_id": "S1", "subject": "From bob@example.com",
+         "body": "Also alice@example.com"}
+    )
+    assert n == 2
+    assert "@" not in ticket.body and "@" not in (ticket.subject or "")

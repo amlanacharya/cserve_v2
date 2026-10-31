@@ -292,9 +292,12 @@ Append-only. A surrogate key allows the same `ticket_id` to be reprocessed acros
 | `is_degraded` | `INTEGER` | No | `CHECK` in 0, 1 | Safe-degradation flag. |
 | `error_details` | `TEXT` | Yes | n/a | Diagnostic if an exception was caught. |
 | `guardrail_violations` | `TEXT` | No | JSON array, default `'[]'` | Violation diagnoses when a guardrail tripped. |
+| `retrieved_doc_ids` | `TEXT` | Yes | JSON array | `doc_id` of each chunk retrieval returned, in rank order, duplicates kept (one entry per chunk, length at most the retrieval top-$k$). Logged for every ticket, including escalated ones. `NULL` only on rows written before this column existed. |
+| `classification_provider` | `TEXT` | Yes | `CHECK` in `groq`, `gemini`, `offline_mock` when not null | Tier that produced the classification. `provider_used` is overwritten by the generation tier, so per-provider accuracy and ECE key on this column. `NULL` only on legacy rows (metrics fall back to `provider_used`). |
+| `pii_redactions_count` | `INTEGER` | No | default `0` | Number of PII/credential items the ingest normalizer redacted from subject and body (email, phone, Luhn-valid card, bearer token, API key). |
 | `latency_ms` | `REAL` | No | n/a | End-to-end latency. |
 
-**Migration note**: `guardrail_violations` was added after the first release of this table. `AuditLogger._init_db` adds it to a pre-existing database with `ALTER TABLE decision_log ADD COLUMN guardrail_violations TEXT NOT NULL DEFAULT '[]'` when `PRAGMA table_info` shows it missing; rows written earlier read back as `[]`. The append-only triggers block `UPDATE` and `DELETE` only, so the `ALTER` is unaffected.
+**Migration note**: `guardrail_violations` was added after the first release of this table. `AuditLogger._init_db` adds it to a pre-existing database with `ALTER TABLE decision_log ADD COLUMN guardrail_violations TEXT NOT NULL DEFAULT '[]'` when `PRAGMA table_info` shows it missing; rows written earlier read back as `[]`. The same pattern (`_ADDITIVE_COLUMNS` in `src/audit/logger.py`) adds `retrieved_doc_ids TEXT`, `classification_provider TEXT CHECK (...)` and `pii_redactions_count INTEGER NOT NULL DEFAULT 0`. The first two are deliberately nullable: a legacy row is then distinguishable from a ticket whose retrieval returned nothing, so precision@k skips legacy rows instead of scoring them 0, and per-provider stats fall back to `provider_used` for them. Legacy rows read `pii_redactions_count = 0`. The append-only triggers block `UPDATE` and `DELETE` only, so the `ALTER` is unaffected.
 
 ```sql
 CREATE TABLE IF NOT EXISTS decision_log (
@@ -319,6 +322,10 @@ CREATE TABLE IF NOT EXISTS decision_log (
     is_degraded           INTEGER NOT NULL CHECK (is_degraded IN (0,1)),
     error_details         TEXT,
     guardrail_violations  TEXT    NOT NULL DEFAULT '[]',
+    retrieved_doc_ids     TEXT,
+    classification_provider TEXT  CHECK (classification_provider IS NULL
+                              OR classification_provider IN ('groq','gemini','offline_mock')),
+    pii_redactions_count  INTEGER NOT NULL DEFAULT 0,
     latency_ms            REAL    NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_decision_log_ticket ON decision_log (ticket_id);
@@ -354,7 +361,9 @@ The orchestrator state channels are governed by the following contract:
 | `final_response` | `str \| None` | `guardrails_node` | Verified response delivered to the customer; null if escalated. |
 | `final_disposition` | `Literal["AUTO_RESOLVED", "ESCALATED_ROUTER", "ESCALATED_GUARDRAIL", "ESCALATED_ERROR"]` | `audit_node` | Terminal outcome; see mapping below. |
 | `citations` | `list[str]` | `generation_node` | Validated `[DOC-ID]` citations. |
-| `provider_used` | `str` | `generation_node` / `classify_node` | LLM tier used (`groq`, `gemini`, or `offline_mock`). |
+| `provider_used` | `str` | `generation_node` / `classify_node` | LLM tier used (`groq`, `gemini`, or `offline_mock`); set by classification, then overwritten by generation. |
+| `classification_provider` | `str` | `classify_node` | Tier that classified the ticket; never overwritten. Audited so per-provider accuracy and ECE are attributed correctly. |
+| `pii_redactions_count` | `int` | `normalize_node` | Inbound PII/credential items redacted at ingest. |
 | `execution_latency_ms` | `float` | Pipeline wrapper | End-to-end elapsed time in milliseconds. |
 | `is_degraded` | `bool` | `@safe_node` | True if any node caught an error and degraded safely. |
 | `error_details` | `str \| None` | `@safe_node` | Traceback or diagnostic if an exception was caught. |
@@ -702,7 +711,10 @@ The implementation is partitioned into six sequential, incremental phases aligne
         *   Volume: Total tickets, auto-resolved count, escalated count, escalation breakdown (`ROUTER`, `GUARDRAIL`, `ERROR`).
         *   Business: Estimated First-Contact Resolution (FCR) rate.
         *   Technical: Accuracy against ground truth labels, retrieval precision@k, P50/P90/P95 latency percentiles, Expected Calibration Error (ECE with $M=10$ bins).
+            *   **precision@k** = mean over labeled tickets of (retrieved chunks among the first $k$ whose `doc_id` is in `expected_doc_ids`) / (chunks in the first $k$), computed from `decision_log.retrieved_doc_ids`, not from `citations` (escalated rows log no citations, which would make precision fall as escalation rises). $k$ is the retrieval top-$k$ the pipeline uses, `TOP_K_PASSAGES` (default **3**); the report states it as `retrieval_k`. Tickets with no retrieval log (legacy rows) or no expected docs are excluded; empty retrieval scores 0.
         *   Governance: PII detection rate, hallucination suppression rate, provider tier distribution (`groq`, `gemini`, `offline_mock`).
+            *   **PII detection rate** = tickets with `pii_redactions_count > 0` (inbound redaction) or a `PII_*`/`CREDENTIAL_*` output-guardrail violation, divided by total tickets (a ticket with both counts once). Components are reported as `pii_inbound_redacted_count`, `pii_output_violation_count`, `pii_redactions_total`.
+            *   **Per-provider** accuracy, ECE, latency and escalation rate are keyed on `classification_provider`; `provider_distribution` stays keyed on `provider_used` (the generation tier).
         *   Output formats: Detailed summary JSON (`validation_report.json`) and tabular CSV (`metrics_summary.csv`).
     *   `[Create] tests/conftest.py`: Shared test infrastructure:
         *   Mock HTTP transport fixtures for Groq and Gemini endpoints using custom `httpx.MockTransport` or monkeypatching.

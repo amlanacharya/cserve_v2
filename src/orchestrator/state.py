@@ -29,6 +29,10 @@ class AgentState(TypedDict, total=False):
     urgency: Urgency
     confidence: float
     must_not_auto_respond: bool
+    classification_provider: Provider  # tier that classified; provider_used is overwritten by generation
+
+    # Ingestion audit
+    pii_redactions_count: int  # inbound PII/credential items redacted by the normalizer
 
     # Retrieval Stage
     retrieved_docs: list[DocumentChunk]
@@ -98,6 +102,8 @@ class RunSnapshot(BaseModel):
     urgency: Urgency = DEFAULT_URGENCY
     confidence: float = 0.0
     must_not_auto_respond: bool = False
+    classification_provider: Provider = OFFLINE_PROVIDER
+    pii_redactions_count: int = 0
     retrieved_docs: list[DocumentChunk] = Field(default_factory=list)
     top_retrieval_score: float = 0.0
     routing_action: RoutingAction = "ESCALATE"
@@ -155,6 +161,9 @@ class RunSnapshot(BaseModel):
             "final_disposition": self.final_disposition,
             "citations": self.citations,
             "provider_used": self.provider_used,
+            "classification_provider": self.classification_provider,
+            "retrieved_doc_ids": [c.doc_id for c in self.retrieved_docs],
+            "pii_redactions_count": self.pii_redactions_count,
             "is_degraded": self.is_degraded,
             "error_details": self.error_details,
             "guardrail_violations": self.guardrail_violations,
