@@ -14,7 +14,7 @@ from src.orchestrator.nodes import (
     retrieval_node,
     routing_node,
 )
-from src.orchestrator.state import AgentState
+from src.orchestrator.state import AgentState, RunSnapshot, initial_state
 
 
 def route_decision(state: dict[str, Any]) -> str:
@@ -91,46 +91,9 @@ class SupportOrchestrator:
         start_time = time.perf_counter()
         run_id_val = run_id or f"run_{uuid.uuid4().hex[:8]}"
 
-        initial_state: dict[str, Any] = {
-            "run_id": run_id_val,
-            "raw_ticket": raw_ticket,
-            "is_degraded": False,
-            "error_details": None,
-            "guardrail_violations": [],
-            "citations": [],
-            "started_at": start_time,
-            "db_path": self.db_path,
-        }
-
-        final_state = self.workflow.invoke(initial_state)
+        final_state = self.workflow.invoke(
+            initial_state(run_id_val, raw_ticket, start_time, self.db_path)
+        )
 
         elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
-        canonical = final_state.get("canonical_ticket")
-        ticket_id = (
-            canonical.ticket_id
-            if canonical
-            else str(raw_ticket.get("ticket_id", "UNKNOWN"))
-        )
-        channel = (
-            canonical.channel
-            if canonical
-            else str(raw_ticket.get("channel", "email"))
-        )
-
-        return ProcessedTicketResult(
-            ticket_id=ticket_id,
-            channel=channel,
-            final_disposition=final_state.get("final_disposition", "ESCALATED_ERROR"),
-            final_response=final_state.get("final_response"),
-            citations=final_state.get("citations", []),
-            escalation_packet=final_state.get("escalation_packet"),
-            inferred_intent=final_state.get("inferred_intent", "unknown"),
-            intent_confidence=float(final_state.get("confidence", 0.0)),
-            urgency=str(final_state.get("urgency", "MEDIUM")),
-            top_retrieval_score=float(final_state.get("top_retrieval_score", 0.0)),
-            routing_reason=str(final_state.get("routing_reason", "")),
-            provider_used=str(final_state.get("provider_used", "offline_mock")),
-            is_degraded=bool(final_state.get("is_degraded", False)),
-            latency_ms=elapsed_ms,
-        )
-
+        return RunSnapshot.from_state(final_state).to_result(raw_ticket, elapsed_ms)
