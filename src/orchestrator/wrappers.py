@@ -7,6 +7,51 @@ from src.core.models import CanonicalTicket
 logger = logging.getLogger(__name__)
 
 
+def _normalize_fallback(state: dict[str, Any], exc: Exception) -> dict[str, Any]:
+    raw = state.get("raw_ticket", {})
+    channel = str(raw.get("channel", "email")).lower().strip()
+    if channel not in ("email", "chat", "docs_comment", "forum"):
+        channel = "email"
+    return {
+        "canonical_ticket": CanonicalTicket(
+            ticket_id=str(raw.get("ticket_id", "FALLBACK-ID")),
+            channel=channel,  # type: ignore[arg-type]
+            body=str(raw.get("body", "")),
+        )
+    }
+
+
+# Per-node safe defaults applied when a node raises. audit_node (and unknown
+# nodes) intentionally have none: an audit failure must not crash the pipeline.
+_FALLBACKS: dict[str, Callable[[dict[str, Any], Exception], dict[str, Any]]] = {
+    "normalize_node": _normalize_fallback,
+    "classify_node": lambda s, e: {
+        "inferred_intent": "unknown",
+        "confidence": 0.0,
+        "intent_alternatives": {},
+        "urgency": "HIGH",
+        "must_not_auto_respond": True,
+        "provider_used": "offline_mock",
+    },
+    "retrieval_node": lambda s, e: {"retrieved_docs": [], "top_retrieval_score": 0.0},
+    "routing_node": lambda s, e: {
+        "routing_action": "ESCALATE",
+        "routing_reason": f"Routing node fault diversion: {str(e)}",
+    },
+    "generation_node": lambda s, e: {
+        "draft_response": None,
+        "citations": [],
+        "final_disposition": "ESCALATED_ERROR",
+    },
+    "guardrails_node": lambda s, e: {
+        "guardrail_status": "TRIPPED",
+        "guardrail_violations": [f"Guardrail execution failure: {str(e)}"],
+        "final_disposition": "ESCALATED_GUARDRAIL",
+    },
+    "escalate_node": lambda s, e: {"final_disposition": "ESCALATED_ERROR"},
+}
+
+
 def safe_node(node_name: str, fallback_action: str = ""):
     """
     Decorator that catches all unhandled exceptions within a LangGraph node,
@@ -27,73 +72,9 @@ def safe_node(node_name: str, fallback_action: str = ""):
                     "error_details": f"{node_name}: {traceback.format_exc()}",
                 }
 
-                if node_name == "normalize_node":
-                    raw = state.get("raw_ticket", {})
-                    channel = str(raw.get("channel", "email")).lower().strip()
-                    if channel not in ("email", "chat", "docs_comment", "forum"):
-                        channel = "email"
-                    updates["canonical_ticket"] = CanonicalTicket(
-                        ticket_id=str(raw.get("ticket_id", "FALLBACK-ID")),
-                        channel=channel,  # type: ignore[arg-type]
-                        body=str(raw.get("body", "")),
-                    )
-
-                elif node_name == "classify_node":
-                    updates.update(
-                        {
-                            "inferred_intent": "unknown",
-                            "confidence": 0.0,
-                            "intent_alternatives": {},
-                            "urgency": "HIGH",
-                            "must_not_auto_respond": True,
-                            "provider_used": "offline_mock",
-                        }
-                    )
-
-                elif node_name == "retrieval_node":
-                    updates.update(
-                        {
-                            "retrieved_docs": [],
-                            "top_retrieval_score": 0.0,
-                        }
-                    )
-
-                elif node_name == "routing_node":
-                    updates.update(
-                        {
-                            "routing_action": "ESCALATE",
-                            "routing_reason": f"Routing node fault diversion: {str(e)}",
-                        }
-                    )
-
-                elif node_name == "generation_node":
-                    updates.update(
-                        {
-                            "draft_response": None,
-                            "citations": [],
-                            "final_disposition": "ESCALATED_ERROR",
-                        }
-                    )
-
-                elif node_name == "guardrails_node":
-                    updates.update(
-                        {
-                            "guardrail_status": "TRIPPED",
-                            "guardrail_violations": [f"Guardrail execution failure: {str(e)}"],
-                            "final_disposition": "ESCALATED_GUARDRAIL",
-                        }
-                    )
-
-                elif node_name == "escalate_node":
-                    updates.update(
-                        {
-                            "final_disposition": "ESCALATED_ERROR",
-                        }
-                    )
-
-                elif node_name == "audit_node":
-                    # Audit failure must not crash pipeline
-                    pass
+                fallback = _FALLBACKS.get(node_name)
+                if fallback is not None:
+                    updates.update(fallback(state, e))
 
                 # Return merged updates into state
                 return updates
