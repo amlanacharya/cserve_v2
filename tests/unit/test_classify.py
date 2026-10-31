@@ -31,6 +31,25 @@ def test_safety_veto_patterns():
         assert bool(SAFETY_VETO_PATTERN.search(phrase)) is False
 
 
+@pytest.mark.parametrize(
+    "text,expected",
+    [
+        ("What is my user agent string?", False),
+        ("Does it support multiple agents?", False),
+        ("The agent SDK fails to install", False),
+        ("Rebreach of the target is fine", False),
+        ("Refund me now", True),
+        ("I need to talk to a human", True),
+        ("Get me a human agent", True),
+        ("I want a live agent", True),
+        ("Transfer me to an agent please", True),
+        ("We found a breach", True),
+    ],
+)
+def test_safety_veto_precision(text, expected):
+    assert bool(SAFETY_VETO_PATTERN.search(text)) is expected
+
+
 def test_extract_json_from_llm_output():
     raw_markdown = """```json
     {
