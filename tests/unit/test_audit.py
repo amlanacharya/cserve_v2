@@ -53,3 +53,42 @@ def test_audit_logger_append_and_immutability(tmp_path):
     assert len(history_after) == 1
     assert history_after[0]["final_disposition"] == "AUTO_RESOLVED"
 
+
+def test_no_unresolved_placeholders_in_ddl_or_alters():
+    from src.audit import logger as lg
+
+    assert "@" not in lg.DDL_STATEMENTS
+    assert all("@" not in d for d in lg._ADDITIVE_COLUMNS.values())
+
+
+def test_add_column_tolerates_a_concurrent_migration(tmp_path):
+    import sqlite3
+
+    from src.audit.logger import AuditLogger, _add_column
+
+    db = tmp_path / "race.db"
+    AuditLogger(db)
+    conn = sqlite3.connect(str(db))
+    # the column already exists, as if another process migrated between our check and our ALTER
+    _add_column(conn, "retrieval_k", "INTEGER")
+    conn.close()
+
+
+def test_schema_init_runs_once_per_database_path(tmp_path, monkeypatch):
+    from src.audit.logger import AuditLogger
+
+    calls = []
+    original = AuditLogger._init_db
+    monkeypatch.setattr(AuditLogger, "_init_db", lambda self: (calls.append(1), original(self))[1])
+    db = tmp_path / "once.db"
+    for _ in range(3):
+        AuditLogger(db).log_decision(
+            {
+                "run_id": "R", "ticket_id": "T", "channel": "email", "inferred_intent": "x",
+                "intent_confidence": 0.5, "urgency": "LOW", "top_retrieval_score": 0.5,
+                "routing_action": "ESCALATE", "routing_reason": "r",
+                "final_disposition": "ESCALATED_ROUTER", "provider_used": "offline_mock",
+                "is_degraded": False, "latency_ms": 1.0,
+            }
+        )
+    assert len(calls) == 1

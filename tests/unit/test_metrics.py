@@ -3,7 +3,7 @@ import csv
 import pytest
 
 from evaluation.metrics import compute_metrics, export_metrics_csv
-from src.audit.logger import AuditLogger
+from src.audit.logger import _INITIALIZED, AuditLogger
 from src.core.types import DISPOSITIONS, PROVIDERS, URGENCIES, sql_in_list
 
 
@@ -157,6 +157,7 @@ def test_legacy_db_without_violations_column_is_migrated(tmp_path):
     conn.execute("ALTER TABLE decision_log DROP COLUMN guardrail_violations")
     conn.commit()
     conn.close()
+    _INITIALIZED.clear()  # a fresh process has not initialised this path yet
     AuditLogger(db).log_decision(
         _gov_record("L1", "groq", "TRIPPED", "ESCALATED_GUARDRAIL", ["PII_EMAIL_DETECTED"])
     )
@@ -302,18 +303,18 @@ def test_pre_16_database_is_migrated_and_legacy_rows_stay_distinguishable(tmp_pa
         classification_provider="groq",
         pii_redactions_count=2,
         retrieval_k=4,
-        failed_node="retrieval_node",
+        failed_nodes=["retrieval_node"],
     )
     audit.log_decision(new)
     rows = {r["ticket_id"]: r for r in audit.get_decision_history()}
-    for col in ("retrieved_doc_ids", "classification_provider", "retrieval_k", "failed_node"):
+    for col in ("retrieved_doc_ids", "classification_provider", "retrieval_k", "failed_nodes"):
         assert rows["L1"][col] is None, col
     assert rows["L1"]["pii_redactions_count"] == 0
     assert rows["L2"]["retrieved_doc_ids"] == '["DOC-A"]'
     assert rows["L2"]["classification_provider"] == "groq"
     assert rows["L2"]["pii_redactions_count"] == 2
     assert rows["L2"]["retrieval_k"] == 4
-    assert rows["L2"]["failed_node"] == "retrieval_node"
+    assert rows["L2"]["failed_nodes"] == '["retrieval_node"]'
     # the migrated column keeps its CHECK constraint
     bad = _record("L3", "x", 0.9, [])
     bad["classification_provider"] = "not_a_provider"
@@ -339,7 +340,7 @@ def test_precision_uses_k_recorded_with_the_run(tmp_path):
 def test_retrieval_crash_is_excluded_from_precision_and_counted(tmp_path):
     db = tmp_path / "rc.db"
     crashed = _retrieved("T1", [])
-    crashed["failed_node"] = "retrieval_node"
+    crashed["failed_nodes"] = ["retrieval_node"]
     empty = _retrieved("T2", [])  # genuinely nothing retrieved -> scores 0
     good = _retrieved("T3", ["A"])
     audit = AuditLogger(db)
@@ -355,7 +356,7 @@ def test_classify_crash_gets_its_own_provider_bucket(tmp_path):
     db = tmp_path / "cc.db"
     audit = AuditLogger(db)
     crash = _record("C1", "unknown", 0.0, [])
-    crash.update(failed_node="classify_node", provider_used="offline_mock")
+    crash.update(failed_nodes=["classify_node"], provider_used="offline_mock")
     offline = _record("C2", "x", 0.4, [])
     offline.update(classification_provider="offline_mock", provider_used="offline_mock")
     for r in (crash, offline):
@@ -385,3 +386,31 @@ def test_new_metric_keys_reach_csv(tmp_path):
     assert values["governance_pii_output_violation_count"] == "0"
     assert values["governance_pii_redactions_total"] == "3"
     assert values["governance_per_provider_groq_tickets"] == "1"
+
+def test_double_crash_row_is_both_classify_failed_and_retrieval_excluded(tmp_path):
+    db = tmp_path / "dc.db"
+    both = _retrieved("T1", [])
+    both["failed_nodes"] = ["classify_node", "retrieval_node"]
+    good = _retrieved("T2", ["A"])
+    audit = AuditLogger(db)
+    audit.log_decision(both)
+    audit.log_decision(good)
+    truths = [_truth("T1", "x", ["A"]), _truth("T2", "x", ["A"])]
+    report = compute_metrics("RUN-M", db_path=db, input_tickets=truths)
+    assert report["technical"]["retrieval_precision_at_k"] == 1.0
+    assert report["technical"]["retrieval_failed_count"] == 1
+    assert report["governance"]["per_provider"]["classify_failed"]["tickets"] == 1
+
+
+@pytest.mark.parametrize("raw", ["null", "5", '{"a": 1}', '"A"'])
+def test_non_list_retrieved_doc_ids_is_treated_as_no_retrieval_log(tmp_path, raw):
+    db = tmp_path / "bad.db"
+    bad = _retrieved("T1", [])
+    bad["retrieved_doc_ids"] = raw  # already a string, so the logger stores it verbatim
+    good = _retrieved("T2", ["A"])
+    audit = AuditLogger(db)
+    audit.log_decision(bad)
+    audit.log_decision(good)
+    truths = [_truth("T1", "x", ["A"]), _truth("T2", "x", ["A"])]
+    tech = compute_metrics("RUN-M", db_path=db, input_tickets=truths)["technical"]
+    assert tech["retrieval_precision_at_k"] == 1.0  # only T2 counts

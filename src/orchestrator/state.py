@@ -61,7 +61,8 @@ class AgentState(TypedDict, total=False):
     started_at: float  # time.perf_counter() at pipeline entry
     is_degraded: bool
     error_details: str | None
-    failed_node: str | None  # set by a node's crash fallback; routing reports NODE_FAILURE
+    failed_node: str | None  # first node whose crash fallback sets it; routing reports NODE_FAILURE
+    failed_nodes: list[str]  # every node that crashed, in order (audit)
     db_path: str | None
 
 
@@ -122,6 +123,7 @@ class RunSnapshot(BaseModel):
     is_degraded: bool = False
     error_details: str | None = None
     failed_node: str | None = None
+    failed_nodes: list[str] = Field(default_factory=list)
     db_path: str | None = None
 
     @classmethod
@@ -167,7 +169,7 @@ class RunSnapshot(BaseModel):
             "classification_provider": self.classification_provider,
             "retrieved_doc_ids": [c.doc_id for c in self.retrieved_docs],
             "retrieval_k": self.retrieval_k,
-            "failed_node": self.failed_node,
+            "failed_nodes": self.failed_nodes,
             "pii_redactions_count": self.pii_redactions_count,
             "is_degraded": self.is_degraded,
             "error_details": self.error_details,

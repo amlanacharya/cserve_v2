@@ -187,7 +187,7 @@ def test_classify_crash_is_attributed_to_failed_node_not_a_provider(monkeypatch)
     monkeypatch.setattr(nodes, "classify_ticket", boom)
     run("E2E-CRASH-CLS")
     row = get_decision_history(ticket_id="E2E-CRASH-CLS")[-1]
-    assert row["failed_node"] == "classify_node"
+    assert json.loads(row["failed_nodes"]) == ["classify_node"]
     assert row["classification_provider"] is None
     assert row["is_degraded"] == 1
 
@@ -200,7 +200,7 @@ def test_classify_fallback_to_offline_is_attributed_to_offline_provider():
     )
     row = get_decision_history(ticket_id="E2E-OFFLINE")[-1]
     assert row["classification_provider"] == "offline_mock"
-    assert row["failed_node"] is None
+    assert row["failed_nodes"] is None
 
 
 def test_retrieval_crash_is_distinguishable_from_empty_retrieval(monkeypatch):
@@ -212,7 +212,7 @@ def test_retrieval_crash_is_distinguishable_from_empty_retrieval(monkeypatch):
     monkeypatch.setattr(nodes, "query_documents", boom)
     result = run("E2E-CRASH-RET")
     row = get_decision_history(ticket_id="E2E-CRASH-RET")[-1]
-    assert row["failed_node"] == "retrieval_node"
+    assert json.loads(row["failed_nodes"]) == ["retrieval_node"]
     assert row["is_degraded"] == 1
     assert row["retrieved_doc_ids"] == "[]"
     assert "NODE_FAILURE: retrieval_node" in result.routing_reason
@@ -221,4 +221,21 @@ def test_retrieval_crash_is_distinguishable_from_empty_retrieval(monkeypatch):
 def test_healthy_run_has_no_failed_node(monkeypatch):
     stub_pipeline(monkeypatch)
     run("E2E-OK")
-    assert get_decision_history(ticket_id="E2E-OK")[-1]["failed_node"] is None
+    assert get_decision_history(ticket_id="E2E-OK")[-1]["failed_nodes"] is None
+
+
+def test_classify_then_retrieval_crash_records_both(monkeypatch):
+    stub_pipeline(monkeypatch)
+
+    def boom_cls(_ticket):
+        raise RuntimeError("simulated classify crash")
+
+    def boom_ret(query_text, top_k):
+        raise RuntimeError("simulated retrieval crash")
+
+    monkeypatch.setattr(nodes, "classify_ticket", boom_cls)
+    monkeypatch.setattr(nodes, "query_documents", boom_ret)
+    result = run("E2E-CRASH-BOTH")
+    row = get_decision_history(ticket_id="E2E-CRASH-BOTH")[-1]
+    assert json.loads(row["failed_nodes"]) == ["classify_node", "retrieval_node"]
+    assert "NODE_FAILURE: classify_node" in result.routing_reason  # first crash still drives routing
