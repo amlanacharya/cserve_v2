@@ -45,4 +45,5 @@ class AgentState(TypedDict, total=False):
     started_at: float  # time.perf_counter() at pipeline entry
     is_degraded: bool
     error_details: str | None
+    db_path: str | None
 

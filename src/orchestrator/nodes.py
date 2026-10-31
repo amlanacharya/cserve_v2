@@ -1,3 +1,4 @@
+import sys
 import time
 from typing import Any
 from src.audit.logger import log_decision
@@ -173,6 +174,13 @@ def audit_node(state: dict[str, Any]) -> dict[str, Any]:
         "latency_ms": _elapsed_ms(state.get("started_at")),
     }
 
-    log_decision(record)
+    try:
+        log_decision(record, db_path=state.get("db_path"))
+    except Exception as e:
+        print(
+            f"AUDIT WRITE FAILED for ticket {ticket.ticket_id} (run {record['run_id']}): {e}",
+            file=sys.stderr,
+        )
+        return {"is_degraded": True, "error_details": f"audit_node: {e}"}
     return {}
 

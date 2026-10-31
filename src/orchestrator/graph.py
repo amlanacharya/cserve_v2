@@ -1,4 +1,5 @@
 import time
+from pathlib import Path
 import uuid
 from typing import Any
 from langgraph.graph import END, StateGraph
@@ -78,7 +79,8 @@ def build_graph():
 
 
 class SupportOrchestrator:
-    def __init__(self):
+    def __init__(self, db_path: str | Path | None = None):
+        self.db_path = str(db_path) if db_path is not None else None
         self.workflow = build_graph()
 
     def process_ticket(
@@ -97,6 +99,7 @@ class SupportOrchestrator:
             "guardrail_violations": [],
             "citations": [],
             "started_at": start_time,
+            "db_path": self.db_path,
         }
 
         final_state = self.workflow.invoke(initial_state)
