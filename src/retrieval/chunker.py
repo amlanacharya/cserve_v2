@@ -5,6 +5,11 @@ from typing import Any
 from src.core.models import DocumentChunk
 
 
+# Spec 6.2: sections under ~40 tokens merge into the preceding sibling.
+MIN_SECTION_TOKENS = 40
+TOKENS_PER_WORD = 1.3
+
+
 def slugify(text: str) -> str:
     """Produce deterministic URL/anchor slugs from heading strings."""
     text = text.lower().strip()
@@ -50,7 +55,7 @@ def chunk_article(doc_dict: dict[str, Any]) -> list[DocumentChunk]:
     Splits a single Markdown article into semantic DocumentChunks:
     - Splits on H2 (##) and H3 (###) headers.
     - Preamble text before the first header is prepended to the first header section.
-    - Merges trailing sections under 40 words into their preceding sibling.
+    - Merges any section under ~40 tokens into their preceding sibling.
     - Splits sections exceeding 256 words at paragraph boundaries with 30-word overlap.
     - Prefixes text with heading hierarchy (Title > Heading > Text).
     """
@@ -59,47 +64,61 @@ def chunk_article(doc_dict: dict[str, Any]) -> list[DocumentChunk]:
     content = doc_dict.get("content", "")
 
     lines = content.split("\n")
-    sections: list[tuple[str, str]] = []
-    current_h: str | None = None
+    # Each section: (heading_trail, level, text); trail is "H2" or "H2 > H3".
+    sections: list[tuple[str, int, str]] = []
+    current: tuple[str, int] | None = None
     preamble: list[str] = []
     curr_lines: list[str] = []
+    h2 = ""
 
     for line in lines:
         if line.startswith("## ") or line.startswith("### "):
-            if current_h is None:
+            if current is None:
                 preamble = curr_lines
             else:
-                sections.append((current_h, "\n".join(curr_lines).strip()))
-            current_h = line.lstrip("#").strip()
+                sections.append((current[0], current[1], "\n".join(curr_lines).strip()))
+            level = 3 if line.startswith("### ") else 2
+            heading = line.lstrip("#").strip()
+            if level == 2:
+                h2 = heading
+                trail = heading
+            else:
+                trail = f"{h2} > {heading}" if h2 else heading
+            current = (trail, level)
             curr_lines = []
         else:
             curr_lines.append(line)
 
-    if current_h is not None:
-        sections.append((current_h, "\n".join(curr_lines).strip()))
+    if current is not None:
+        sections.append((current[0], current[1], "\n".join(curr_lines).strip()))
     elif curr_lines:
-        sections.append(("Overview", "\n".join(curr_lines).strip()))
+        sections.append(("Overview", 2, "\n".join(curr_lines).strip()))
 
     # Prepend preamble to first section if present
     if preamble and sections:
-        first_h, first_t = sections[0]
-        sections[0] = (first_h, ("\n".join(preamble).strip() + "\n\n" + first_t).strip())
+        first_h, first_l, first_t = sections[0]
+        sections[0] = (first_h, first_l, ("\n".join(preamble).strip() + "\n\n" + first_t).strip())
 
-    # Merge trailing section under 40 words into preceding sibling
-    if len(sections) > 1 and len(sections[-1][1].split()) < 40:
-        last_h, last_t = sections.pop()
-        prev_h, prev_t = sections[-1]
-        sections[-1] = (prev_h, prev_t + f"\n\n## {last_h}\n" + last_t)
+    # Merge any section under 40 words into its preceding sibling
+    merged: list[tuple[str, int, str]] = []
+    for h, lvl, t in sections:
+        if merged and len(t.split()) * TOKENS_PER_WORD < MIN_SECTION_TOKENS:
+            prev_h, prev_l, prev_t = merged[-1]
+            label = h.split(" > ")[-1]
+            merged[-1] = (prev_h, prev_l, prev_t + f"\n\n{'#' * lvl} {label}\n" + t)
+        else:
+            merged.append((h, lvl, t))
+    sections = merged
 
     # Now build DocumentChunks, splitting any section > 256 words if necessary
     chunks: list[DocumentChunk] = []
     ordinal = 0
 
-    for h, t in sections:
+    for h, _lvl, t in sections:
         sub_texts = split_large_section(t, max_words=256, overlap_words=30)
         for sub_idx, sub_t in enumerate(sub_texts):
             sub_suffix = f"-part{sub_idx+1}" if len(sub_texts) > 1 else ""
-            chunk_slug = f"{slugify(h)}{sub_suffix}"
+            chunk_slug = f"{slugify(h.split(' > ')[-1])}{sub_suffix}"
             chunk_id = f"{doc_id}#{chunk_slug}"
             heading_path = f"{title} > {h}"
             full_text = f"{title} > {h}\n\n{sub_t}"
@@ -136,4 +155,8 @@ def chunk_documentation(docs_path: str | Path) -> list[DocumentChunk]:
     for doc in docs:
         all_chunks.extend(chunk_article(doc))
 
+    if not 70 <= len(all_chunks) <= 90:
+        raise ValueError(
+            f"Chunk count {len(all_chunks)} outside required 70-90 bounds (spec 6.2)"
+        )
     return all_chunks

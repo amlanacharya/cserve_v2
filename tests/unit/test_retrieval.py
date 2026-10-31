@@ -34,9 +34,9 @@ def test_chunk_single_article():
             "# Test Article for Chunking\n\n"
             "This is a preamble section.\n\n"
             "## Section One\n\n"
-            "Here is the detailed content of section one with enough words to be meaningful.\n\n"
+            "Here is the detailed content of section one with enough words to be meaningful. " + "word " * 40 + "\n\n"
             "## Section Two\n\n"
-            "Here is the content of section two which provides actionable steps.\n\n"
+            "Here is the content of section two which provides actionable steps. " + "word " * 40 + "\n\n"
             "## Notes\n\n"
             "Short note under forty words.\n"
         ),
@@ -48,6 +48,39 @@ def test_chunk_single_article():
     assert "preamble" in chunks[0].text
     assert chunks[1].chunk_id == "DOC-TEST-001#section-two"
     assert "Short note under forty words" in chunks[1].text
+
+
+LONG = " ".join(["word"] * 60)
+
+
+def test_short_mid_article_section_merges_into_preceding():
+    doc = {
+        "doc_id": "DOC-T2",
+        "title": "T",
+        "content": f"## A\n\n{LONG}\n\n## B\n\nTiny.\n\n## C\n\n{LONG}\n",
+    }
+    chunks = chunk_article(doc)
+    assert [c.chunk_id for c in chunks] == ["DOC-T2#a", "DOC-T2#c"]
+    assert "Tiny." in chunks[0].text
+
+
+def test_heading_path_includes_h2_and_h3():
+    doc = {
+        "doc_id": "DOC-T3",
+        "title": "T",
+        "content": f"## Troubleshooting\n\n{LONG}\n\n### Health checks\n\n{LONG}\n\n## Next\n\n{LONG}\n",
+    }
+    paths = [c.heading_path for c in chunk_article(doc)]
+    assert paths == ["T > Troubleshooting", "T > Troubleshooting > Health checks", "T > Next"]
+
+
+def test_index_fails_loudly_when_chunk_count_out_of_bounds(tmp_path):
+    import json
+
+    docs = tmp_path / "docs.json"
+    docs.write_text(json.dumps([{"doc_id": "D1", "title": "T", "content": f"## A\n\n{LONG}\n"}]))
+    with pytest.raises(ValueError, match="70-90"):
+        index_documentation(docs_path=docs, persist_dir=tmp_path / "db")
 
 
 def test_chromadb_index_and_retrieval(tmp_path):
