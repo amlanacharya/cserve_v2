@@ -35,7 +35,7 @@ def run_batch_evaluation(
     run_id = f"batch_{int(time.time())}_{uuid.uuid4().hex[:6]}"
     logger.info(f"Starting batch evaluation run {run_id} ({len(tickets)} tickets, delay={delay}s)")
 
-    orchestrator = SupportOrchestrator()
+    orchestrator = SupportOrchestrator(db_path=db_path)
 
     for idx, raw_ticket in enumerate(tqdm(tickets, desc="Processing Evaluation Tickets")):
         try:
