@@ -738,7 +738,7 @@ All unit tests (`tests/unit/`) and integration tests (`tests/integration/`) must
 ```bash
 python -m evaluation.harness --input 05_Datasets/validation_tickets.json --output evaluation/validation_report.json --delay 1.5
 ```
-Verifies batch completion across all 120 validation tickets, confirming:
+Verifies batch completion across all 80 validation tickets, confirming:
 1. `validation_report.json` and `metrics_summary.csv` are generated.
 2. Volume metrics reconcile: `total_processed == len(validation_tickets)`.
 3. Business metrics achieve FCR target $\ge 65\%$.
