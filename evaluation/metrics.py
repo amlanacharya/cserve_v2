@@ -102,12 +102,7 @@ def compute_metrics(
         if gt_ticket and "labels" in gt_ticket:
             labels = gt_ticket["labels"]
             true_intent = str(labels.get("intent", "")).lower().strip()
-            # Match exact or prefix/substring overlap
-            is_match = int(
-                pred_intent == true_intent
-                or true_intent in pred_intent
-                or pred_intent in true_intent
-            )
+            is_match = int(pred_intent == true_intent)
             accuracies.append(is_match)
             confidences.append(conf)
 
@@ -120,9 +115,11 @@ def compute_metrics(
                     cites = json.loads(citations_raw) if isinstance(citations_raw, str) else citations_raw
                 except Exception:
                     cites = []
-                # Check if any expected doc was cited or high retrieval score
-                if any(ed in cites for ed in expected_docs) or float(r["top_retrieval_score"]) >= 0.65:
-                    retrieval_hits += 1
+                # Per-ticket precision: fraction of retrieved (cited) docs that were expected.
+                # Independent of the routing score gate.
+                unique_cites = set(cites)
+                if unique_cites:
+                    retrieval_hits += len(unique_cites & set(expected_docs)) / len(unique_cites)
 
     overall_accuracy = round(sum(accuracies) / len(accuracies), 4) if accuracies else None
     ece = compute_ece(confidences, accuracies, num_bins=10) if accuracies else None
