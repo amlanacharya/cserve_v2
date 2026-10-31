@@ -61,8 +61,21 @@ def _has_violation(row: dict[str, Any], prefixes: tuple[str, ...]) -> bool:
     return any(str(v).startswith(prefixes) for v in violations)
 
 
+CLASSIFY_FAILED = "classify_failed"  # per-provider bucket for tickets whose classify node crashed
+
+
+def _pii_redactions(row: dict[str, Any]) -> int:
+    return int(row.get("pii_redactions_count") or 0)
+
+
 def _classification_provider(row: dict[str, Any]) -> str:
-    """Provider that classified the ticket; legacy rows (NULL) fall back to provider_used."""
+    """Provider that classified the ticket.
+
+    A classify crash has no provider (bucketed apart from offline_mock); legacy rows (NULL
+    classification_provider, no crash) fall back to provider_used.
+    """
+    if row.get("failed_node") == "classify_node":
+        return CLASSIFY_FAILED
     return row.get("classification_provider") or row.get("provider_used", "unknown")
 
 
@@ -112,12 +125,12 @@ def compute_metrics(
     Computes volume, business, technical, and governance metrics for a batch run.
     Reconciles decisions recorded in SQLite decision_log.
 
-    k is the precision@k cut-off. It defaults to the retrieval top-k the pipeline actually uses
-    (Settings.top_k_passages, i.e. TOP_K_PASSAGES, default 3), so precision@k is measured over
-    exactly the chunks that were handed to generation.
+    k overrides the precision@k cut-off for every row. By default each row uses the retrieval
+    top-k recorded with it (decision_log.retrieval_k), so precision@k is measured over exactly
+    the chunks that were handed to generation even if TOP_K_PASSAGES changes later; legacy rows
+    without a recorded k use the current setting.
     """
-    if k is None:
-        k = get_settings().top_k_passages
+    default_k = get_settings().top_k_passages
     history = get_decision_history(run_id=run_id, db_path=db_path)
     total_tickets = len(history)
 
@@ -159,6 +172,9 @@ def compute_metrics(
     accuracies: list[int] = []
     retrieval_hits = 0
     retrieval_eval_count = 0
+    ks_used: list[int] = []
+    # A crashed retrieval node is a failure, not a measurement: it is reported, not scored 0.
+    retrieval_failed = sum(1 for r in history if r.get("failed_node") == "retrieval_node")
 
     for r in history:
         tid = r["ticket_id"]
@@ -178,9 +194,11 @@ def compute_metrics(
             # independent of the routing score gate. Legacy rows without a retrieval log are skipped.
             expected_docs = labels.get("expected_doc_ids", [])
             retrieved = _retrieved_doc_ids(r)
-            if expected_docs and retrieved is not None:
+            if expected_docs and retrieved is not None and r.get("failed_node") != "retrieval_node":
                 retrieval_eval_count += 1
-                top_k = retrieved[:k]
+                row_k = k or r.get("retrieval_k") or default_k
+                ks_used.append(row_k)
+                top_k = retrieved[:row_k]
                 if top_k:
                     expected = set(expected_docs)
                     retrieval_hits += sum(1 for d in top_k if d in expected) / len(top_k)
@@ -190,6 +208,9 @@ def compute_metrics(
     retrieval_precision = (
         round(retrieval_hits / retrieval_eval_count, 4) if retrieval_eval_count > 0 else None
     )
+
+    recorded_ks = [r["retrieval_k"] for r in history if r.get("retrieval_k")]
+    reported_k = k or max(ks_used or recorded_ks or [default_k])
 
     # Governance Metrics
     provider_distribution: dict[str, int] = {}
@@ -202,14 +223,12 @@ def compute_metrics(
 
     # PII detection: a ticket counts once if inbound PII was redacted at ingest OR the output
     # guardrails flagged PII/credentials.
-    pii_inbound = sum(1 for r in history if int(r.get("pii_redactions_count") or 0) > 0)
-    pii_output = sum(1 for r in history if _has_violation(r, _PII_PREFIXES))
-    pii_detected = sum(
-        1
-        for r in history
-        if int(r.get("pii_redactions_count") or 0) > 0 or _has_violation(r, _PII_PREFIXES)
-    )
-    pii_redactions_total = sum(int(r.get("pii_redactions_count") or 0) for r in history)
+    inbound_flags = [_pii_redactions(r) > 0 for r in history]
+    output_flags = [_has_violation(r, _PII_PREFIXES) for r in history]
+    pii_inbound = sum(inbound_flags)
+    pii_output = sum(output_flags)
+    pii_detected = sum(i or o for i, o in zip(inbound_flags, output_flags))
+    pii_redactions_total = sum(_pii_redactions(r) for r in history)
     halluc_suppressed = sum(1 for r in history if _has_violation(r, _HALLUCINATION_PREFIXES))
 
     # Per-provider accuracy/ECE are attributed to the provider that classified the ticket,
@@ -239,7 +258,8 @@ def compute_metrics(
             "accuracy": overall_accuracy,
             "expected_calibration_error": ece,
             "retrieval_precision_at_k": retrieval_precision,
-            "retrieval_k": k,
+            "retrieval_k": reported_k,
+            "retrieval_failed_count": retrieval_failed,
             "latency_p50_ms": p50_latency,
             "latency_p90_ms": p90_latency,
             "latency_p95_ms": p95_latency,

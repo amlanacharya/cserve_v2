@@ -31,10 +31,7 @@ CREATE TABLE IF NOT EXISTS decision_log (
     provider_used         TEXT    NOT NULL CHECK (provider_used IN (@PROVIDERS@)),
     is_degraded           INTEGER NOT NULL CHECK (is_degraded IN (0,1)),
     error_details         TEXT,
-    guardrail_violations  TEXT    NOT NULL DEFAULT '[]',
-    retrieved_doc_ids     TEXT,
-    classification_provider TEXT   CHECK (classification_provider IS NULL OR classification_provider IN (@PROVIDERS@)),
-    pii_redactions_count  INTEGER NOT NULL DEFAULT 0,
+@ADDITIVE_COLUMNS@
     latency_ms           REAL    NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_decision_log_ticket ON decision_log (ticket_id);
@@ -47,25 +44,37 @@ CREATE TRIGGER IF NOT EXISTS decision_log_no_delete BEFORE DELETE ON decision_lo
 BEGIN SELECT RAISE(ABORT, 'decision_log is append-only'); END;
 """
 
-DDL_STATEMENTS = (
-    DDL_STATEMENTS.replace("@URGENCIES@", sql_in_list(URGENCIES))
-    .replace("@DISPOSITIONS@", sql_in_list(DISPOSITIONS))
-    .replace("@PROVIDERS@", sql_in_list(PROVIDERS))
-)
-
-# Columns added after the first release; _init_db ALTERs them into pre-existing databases.
-# retrieved_doc_ids / classification_provider are nullable so legacy rows stay distinguishable
-# from "nothing retrieved" / "classified by <provider>" (metrics skip or fall back on NULL).
+# Columns added after the first release, defined once: the fresh DDL embeds them and
+# _init_db ALTERs the missing ones into pre-existing databases.
+# Nullable ones (retrieved_doc_ids, classification_provider, retrieval_k, failed_node) keep legacy
+# rows distinguishable: NULL means "written before the column existed" (failed_node: "no crash").
 _ADDITIVE_COLUMNS = {
     "guardrail_violations": "TEXT NOT NULL DEFAULT '[]'",
     "retrieved_doc_ids": "TEXT",
     "classification_provider": (
-        "TEXT CHECK (classification_provider IS NULL OR classification_provider IN ("
-        + sql_in_list(PROVIDERS)
-        + "))"
+        "TEXT CHECK (classification_provider IS NULL OR classification_provider IN (@PROVIDERS@))"
     ),
     "pii_redactions_count": "INTEGER NOT NULL DEFAULT 0",
+    "retrieval_k": "INTEGER",
+    "failed_node": "TEXT",
 }
+
+
+def _resolve_enums(sql: str) -> str:
+    return (
+        sql.replace("@URGENCIES@", sql_in_list(URGENCIES))
+        .replace("@DISPOSITIONS@", sql_in_list(DISPOSITIONS))
+        .replace("@PROVIDERS@", sql_in_list(PROVIDERS))
+    )
+
+
+DDL_STATEMENTS = _resolve_enums(
+    DDL_STATEMENTS.replace(
+        "@ADDITIVE_COLUMNS@",
+        "\n".join(f"    {name:<21} {definition}," for name, definition in _ADDITIVE_COLUMNS.items()),
+    )
+)
+_ADDITIVE_COLUMNS = {name: _resolve_enums(definition) for name, definition in _ADDITIVE_COLUMNS.items()}
 
 _DB_LOCK = threading.Lock()
 
@@ -116,42 +125,42 @@ class AuditLogger:
         if retrieved is not None and not isinstance(retrieved, str):
             retrieved = json.dumps(list(retrieved))
         class_provider = record.get("classification_provider")
+        retrieval_k = record.get("retrieval_k")
+        failed_node = record.get("failed_node")
 
-        sql = """
-        INSERT INTO decision_log (
-            run_id, ticket_id, channel, logged_at, inferred_intent,
-            intent_confidence, intent_alternatives, urgency, top_retrieval_score,
-            must_not_auto_respond, routing_action, routing_reason, guardrail_status,
-            final_disposition, citations, provider_used, is_degraded, error_details,
-            guardrail_violations, retrieved_doc_ids, classification_provider,
-            pii_redactions_count, latency_ms
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """
-        params = (
-            str(record["run_id"]),
-            str(record["ticket_id"]),
-            str(record["channel"]).lower(),
-            str(logged_at),
-            str(record["inferred_intent"]),
-            float(record["intent_confidence"]),
-            intent_alternatives,
-            str(record["urgency"]).upper(),
-            float(record["top_retrieval_score"]),
-            1 if record.get("must_not_auto_respond") else 0,
-            str(record["routing_action"]),
-            str(record["routing_reason"]),
-            str(record["guardrail_status"]) if record.get("guardrail_status") else None,
-            str(record["final_disposition"]),
-            citations,
-            str(record["provider_used"]),
-            1 if record.get("is_degraded") else 0,
-            str(record.get("error_details")) if record.get("error_details") else None,
-            violations,
-            retrieved,
-            str(class_provider) if class_provider else None,
-            int(record.get("pii_redactions_count") or 0),
-            float(record.get("latency_ms", 0.0)),
+        # One ordered (column, value) list drives the column list, placeholders and params.
+        row = (
+            ("run_id", str(record["run_id"])),
+            ("ticket_id", str(record["ticket_id"])),
+            ("channel", str(record["channel"]).lower()),
+            ("logged_at", str(logged_at)),
+            ("inferred_intent", str(record["inferred_intent"])),
+            ("intent_confidence", float(record["intent_confidence"])),
+            ("intent_alternatives", intent_alternatives),
+            ("urgency", str(record["urgency"]).upper()),
+            ("top_retrieval_score", float(record["top_retrieval_score"])),
+            ("must_not_auto_respond", 1 if record.get("must_not_auto_respond") else 0),
+            ("routing_action", str(record["routing_action"])),
+            ("routing_reason", str(record["routing_reason"])),
+            ("guardrail_status", str(record["guardrail_status"]) if record.get("guardrail_status") else None),
+            ("final_disposition", str(record["final_disposition"])),
+            ("citations", citations),
+            ("provider_used", str(record["provider_used"])),
+            ("is_degraded", 1 if record.get("is_degraded") else 0),
+            ("error_details", str(record.get("error_details")) if record.get("error_details") else None),
+            ("guardrail_violations", violations),
+            ("retrieved_doc_ids", retrieved),
+            ("classification_provider", str(class_provider) if class_provider else None),
+            ("pii_redactions_count", int(record.get("pii_redactions_count") or 0)),
+            ("retrieval_k", int(retrieval_k) if retrieval_k is not None else None),
+            ("failed_node", str(failed_node) if failed_node else None),
+            ("latency_ms", float(record.get("latency_ms", 0.0))),
         )
+        sql = (
+            f"INSERT INTO decision_log ({', '.join(c for c, _ in row)}) "
+            f"VALUES ({', '.join('?' * len(row))})"
+        )
+        params = tuple(v for _, v in row)
 
         for attempt in range(2):
             try:

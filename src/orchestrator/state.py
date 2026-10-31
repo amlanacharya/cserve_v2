@@ -29,7 +29,7 @@ class AgentState(TypedDict, total=False):
     urgency: Urgency
     confidence: float
     must_not_auto_respond: bool
-    classification_provider: Provider  # tier that classified; provider_used is overwritten by generation
+    classification_provider: Provider | None  # tier that classified (None: classify crashed); provider_used is overwritten by generation
 
     # Ingestion audit
     pii_redactions_count: int  # inbound PII/credential items redacted by the normalizer
@@ -37,6 +37,7 @@ class AgentState(TypedDict, total=False):
     # Retrieval Stage
     retrieved_docs: list[DocumentChunk]
     top_retrieval_score: float
+    retrieval_k: int  # top-k the retrieval node asked for
 
     # Routing Stage
     routing_action: RoutingAction
@@ -102,10 +103,11 @@ class RunSnapshot(BaseModel):
     urgency: Urgency = DEFAULT_URGENCY
     confidence: float = 0.0
     must_not_auto_respond: bool = False
-    classification_provider: Provider = OFFLINE_PROVIDER
+    classification_provider: Provider | None = None
     pii_redactions_count: int = 0
     retrieved_docs: list[DocumentChunk] = Field(default_factory=list)
     top_retrieval_score: float = 0.0
+    retrieval_k: int | None = None
     routing_action: RoutingAction = "ESCALATE"
     routing_reason: str = ""
     draft_response: str | None = None
@@ -119,6 +121,7 @@ class RunSnapshot(BaseModel):
     started_at: float | None = None
     is_degraded: bool = False
     error_details: str | None = None
+    failed_node: str | None = None
     db_path: str | None = None
 
     @classmethod
@@ -163,6 +166,8 @@ class RunSnapshot(BaseModel):
             "provider_used": self.provider_used,
             "classification_provider": self.classification_provider,
             "retrieved_doc_ids": [c.doc_id for c in self.retrieved_docs],
+            "retrieval_k": self.retrieval_k,
+            "failed_node": self.failed_node,
             "pii_redactions_count": self.pii_redactions_count,
             "is_degraded": self.is_degraded,
             "error_details": self.error_details,
