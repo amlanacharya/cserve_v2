@@ -1,0 +1,74 @@
+# Environment variables & secrets
+.env
+.env.local
+*.env
+
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Vector Stores & Databases
+chroma_db/
+data/
+*.sqlite3
+*.db
+
+# IDE & Editor caches
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Output reports & temporary logs
+evaluation/results/
+tmp/
+temp/
+logs/
+
+
+# Non-deliverable material (kept on disk, untracked)
+scratch/
+.serena/
+docs/extracted_docx/
+docs/workbooks/
+docs/AmlanAcharya_Capstone_Report.md
+docs/video_recording_script.md
+/comprehension_report.md
+/critic_report.md
+/zoom_out_report.md
+/intermediate_zoom_out_report.md
+/implementation_readiness_report.md
+/goldfish_review_report.md
+/concepts_brief.md
+/design_draft.md

@@ -1,0 +1,98 @@
+import time
+from pathlib import Path
+import uuid
+from typing import Any
+from langgraph.graph import END, StateGraph
+from src.core.models import ProcessedTicketResult
+from src.orchestrator.nodes import (
+    audit_node,
+    classify_node,
+    escalate_node,
+    generation_node,
+    guardrails_node,
+    normalize_node,
+    retrieval_node,
+    routing_node,
+)
+from src.orchestrator.state import AgentState, RunSnapshot, elapsed_ms, initial_state
+
+
+def route_decision(state: dict[str, Any]) -> str:
+    if state.get("routing_action") == "AUTO_RESPOND":
+        return "generate"
+    return "escalate"
+
+
+def generate_decision(state: dict[str, Any]) -> str:
+    draft = state.get("draft_response")
+    if draft and str(draft).strip():
+        return "guardrails"
+    return "escalate"
+
+
+def guardrails_decision(state: dict[str, Any]) -> str:
+    if state.get("guardrail_status") == "PASSED":
+        return "audit"
+    return "escalate"
+
+
+def build_graph():
+    builder = StateGraph(AgentState)
+
+    builder.add_node("normalize", normalize_node)
+    builder.add_node("classify", classify_node)
+    builder.add_node("retrieve", retrieval_node)
+    builder.add_node("route", routing_node)
+    builder.add_node("generate", generation_node)
+    builder.add_node("guardrails", guardrails_node)
+    builder.add_node("escalate", escalate_node)
+    builder.add_node("audit", audit_node)
+
+    builder.set_entry_point("normalize")
+
+    builder.add_edge("normalize", "classify")
+    builder.add_edge("classify", "retrieve")
+    builder.add_edge("retrieve", "route")
+
+    builder.add_conditional_edges(
+        "route",
+        route_decision,
+        {"generate": "generate", "escalate": "escalate"},
+    )
+
+    builder.add_conditional_edges(
+        "generate",
+        generate_decision,
+        {"guardrails": "guardrails", "escalate": "escalate"},
+    )
+
+    builder.add_conditional_edges(
+        "guardrails",
+        guardrails_decision,
+        {"audit": "audit", "escalate": "escalate"},
+    )
+
+    builder.add_edge("escalate", "audit")
+    builder.add_edge("audit", END)
+
+    return builder.compile()
+
+
+class SupportOrchestrator:
+    def __init__(self, db_path: str | Path | None = None):
+        self.db_path = str(db_path) if db_path is not None else None
+        self.workflow = build_graph()
+
+    def process_ticket(
+        self,
+        raw_ticket: dict[str, Any],
+        run_id: str | None = None,
+    ) -> ProcessedTicketResult:
+        start_time = time.perf_counter()
+        run_id_val = run_id or f"run_{uuid.uuid4().hex[:8]}"
+
+        final_state = self.workflow.invoke(
+            initial_state(run_id_val, raw_ticket, start_time, self.db_path)
+        )
+
+        return RunSnapshot.from_state(final_state).to_result(raw_ticket, elapsed_ms(start_time))
