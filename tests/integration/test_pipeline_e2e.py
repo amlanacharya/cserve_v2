@@ -111,6 +111,7 @@ def test_guardrail_diverts_to_escalated_guardrail(monkeypatch, draft, citations,
     row = get_decision_history(ticket_id="E2E-GUARD-01")[-1]
     assert row["routing_action"] == "AUTO_RESPOND"
     assert row["guardrail_status"] == "TRIPPED"
+    assert violation in str(row["guardrail_violations"])
     assert row["final_disposition"] == "ESCALATED_GUARDRAIL"
 
 

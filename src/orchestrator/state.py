@@ -148,6 +148,7 @@ class RunSnapshot(BaseModel):
             "provider_used": self.provider_used,
             "is_degraded": self.is_degraded,
             "error_details": self.error_details,
+            "guardrail_violations": self.guardrail_violations,
             "latency_ms": latency_ms,
         }
 
