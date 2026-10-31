@@ -335,7 +335,7 @@ The orchestrator state channels are governed by the following contract:
 | `run_id` | `str` | Input | Unique run identifier for batch execution or API session audit reconciliation. |
 | `raw_ticket` | `dict[str, Any]` | Input | Initial incoming customer inquiry payload. |
 | `canonical_ticket` | `CanonicalTicket` | `normalize_node` | Canonical schema; never null after normalization. |
-| `inferred_intent` | `str` | `classify_node` | One of `billing`, `authentication`, `deployment_failure`, `rate_limiting`, `general_inquiry`, or `unknown`. |
+| `inferred_intent` | `str` | `classify_node` | One of the 21 dataset intent labels (`api_key_issue`, `authentication_failure`, `account_access`, `sso_configuration`, `billing_query`, `quota_or_overage`, `deployment_failure`, `rollback_request`, `rate_limit`, `performance_degradation`, `database_issue`, `security_incident`, `compliance_request`, `configuration_help`, `integration_help`, `webhook_issue`, `data_residency`, `data_export`, `feature_request`, `onboarding`, `unclear_request`), or `unknown` on classification failure (decision recorded in issue #10). |
 | `intent_alternatives` | `dict[str, float]` | `classify_node` | Runner-up intents with scores; `{}` if none. Informational only; never used in the routing gate. |
 | `urgency` | `Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"]` | `classify_node` | Classified urgency level. |
 | `confidence` | `float` | `classify_node` | Intent confidence $c \in [0.0, 1.0]$. Independent of retrieval similarity. |
@@ -607,7 +607,7 @@ The implementation is partitioned into six sequential, incremental phases aligne
     *   `[Create] src/classify/classifier.py`: Query Groq `llama-3.1-8b-instant` (temperature 0.0) with static prompt requesting JSON output:
         ```json
         {
-          "inferred_intent": "billing | authentication | deployment_failure | rate_limiting | general_inquiry",
+          "inferred_intent": "<one of the 21 dataset intent labels>",
           "intent_alternatives": {"<intent>": <score>},
           "urgency": "LOW | MEDIUM | HIGH | CRITICAL",
           "confidence": <float between 0.0 and 1.0>
@@ -738,7 +738,7 @@ All unit tests (`tests/unit/`) and integration tests (`tests/integration/`) must
 ```bash
 python -m evaluation.harness --input 05_Datasets/validation_tickets.json --output evaluation/validation_report.json --delay 1.5
 ```
-Verifies batch completion across all 120 validation tickets, confirming:
+Verifies batch completion across all 80 validation tickets, confirming:
 1. `validation_report.json` and `metrics_summary.csv` are generated.
 2. Volume metrics reconcile: `total_processed == len(validation_tickets)`.
 3. Business metrics achieve FCR target $\ge 65\%$.
