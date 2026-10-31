@@ -86,3 +86,45 @@ def test_guardrails_tripped_on_leak(sample_retrieved_docs):
     assert status == "TRIPPED"
     assert "CREDENTIAL_API_KEY_DETECTED" in violations
 
+
+
+def _chunk(doc_id, text):
+    return DocumentChunk(
+        chunk_id=f"{doc_id}#0", doc_id=doc_id, title=doc_id,
+        heading_path=doc_id, text=text, ordinal=0, similarity=0.9,
+    )
+
+
+def test_one_ungrounded_sentence_trips_guard(sample_retrieved_docs):
+    draft = (
+        "Clear browser cookies and cache on the account. "
+        "Confirm whether the account is locked by checking the security page. "
+        "Quantum teleportation enables instantaneous interplanetary streaming."
+    )
+    violations = check_hallucination_and_entailment(draft, ["DOC-AUTH-001"], sample_retrieved_docs)
+    assert any("LOW_UNIGRAM_ENTAILMENT" in v for v in violations)
+
+
+def test_stop_word_overlap_is_not_entailment():
+    docs = [_chunk("DOC-A", "the and with that this from have were what when which about passwords")]
+    draft = "Refunds require approval that this with from have were what."
+    violations = check_hallucination_and_entailment(draft, ["DOC-A"], docs)
+    assert any("LOW_UNIGRAM_ENTAILMENT" in v for v in violations)
+
+
+def test_short_sentence_draft_is_still_checked(sample_retrieved_docs):
+    draft = "Quantum teleportation works."
+    violations = check_hallucination_and_entailment(draft, ["DOC-AUTH-001"], sample_retrieved_docs)
+    assert any("LOW_UNIGRAM_ENTAILMENT" in v for v in violations)
+
+
+def test_missing_cited_doc_not_rescued_by_other_docs(sample_retrieved_docs):
+    draft = "Clear browser cookies and cache."
+    violations = check_hallucination_and_entailment(draft, ["DOC-FAKE-999"], sample_retrieved_docs)
+    assert any("HALLUCINATED_DOC_ID" in v for v in violations)
+    assert any("LOW_UNIGRAM_ENTAILMENT" in v or "EMPTY_RETRIEVED_CONTEXT" in v for v in violations)
+
+
+def test_grounded_draft_passes(sample_retrieved_docs):
+    draft = "Clear browser cookies and cache. Confirm whether the account is locked."
+    assert check_hallucination_and_entailment(draft, ["DOC-AUTH-001"], sample_retrieved_docs) == []
