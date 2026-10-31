@@ -1,3 +1,4 @@
+import time
 from typing import Any
 from src.audit.logger import log_decision
 from src.classify.classifier import classify_ticket
@@ -139,6 +140,12 @@ def escalate_node(state: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _elapsed_ms(started_at: float | None) -> float:
+    if started_at is None:
+        return 0.0
+    return round((time.perf_counter() - started_at) * 1000, 2)
+
+
 @safe_node(node_name="audit_node")
 def audit_node(state: dict[str, Any]) -> dict[str, Any]:
     ticket = state.get("canonical_ticket")
@@ -163,7 +170,7 @@ def audit_node(state: dict[str, Any]) -> dict[str, Any]:
         "provider_used": state.get("provider_used", "offline_mock"),
         "is_degraded": state.get("is_degraded", False),
         "error_details": state.get("error_details"),
-        "latency_ms": state.get("execution_latency_ms", 0.0),
+        "latency_ms": _elapsed_ms(state.get("started_at")),
     }
 
     log_decision(record)
