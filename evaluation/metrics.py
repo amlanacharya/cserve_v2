@@ -42,6 +42,48 @@ def compute_ece(confidences: list[float], accuracies: list[int], num_bins: int =
     return round(float(ece), 4)
 
 
+_PII_PREFIXES = ("PII_", "CREDENTIAL_")
+_HALLUCINATION_PREFIXES = (
+    "HALLUCINATED_",
+    "LOW_UNIGRAM_ENTAILMENT",
+    "MISSING_DOC_CITATIONS",
+    "EMPTY_RETRIEVED_CONTEXT",
+)
+
+
+def _has_violation(row: dict[str, Any], prefixes: tuple[str, ...]) -> bool:
+    raw = row.get("guardrail_violations") or "[]"
+    try:
+        violations = json.loads(raw) if isinstance(raw, str) else raw
+    except Exception:
+        return False
+    return any(str(v).startswith(prefixes) for v in violations)
+
+
+def _provider_stats(
+    rows: list[dict[str, Any]], ground_truth_map: dict[str, dict[str, Any]]
+) -> dict[str, Any]:
+    n = len(rows)
+    confidences: list[float] = []
+    accuracies: list[int] = []
+    for r in rows:
+        gt = ground_truth_map.get(r["ticket_id"])
+        if gt and "labels" in gt:
+            true_intent = str(gt["labels"].get("intent", "")).lower().strip()
+            accuracies.append(int(str(r["inferred_intent"]).lower().strip() == true_intent))
+            confidences.append(float(r["intent_confidence"]))
+    latencies = [float(r["latency_ms"]) for r in rows if r["latency_ms"] is not None]
+    escalated = sum(1 for r in rows if r["final_disposition"] != "AUTO_RESOLVED")
+    return {
+        "tickets": n,
+        "accuracy": round(sum(accuracies) / len(accuracies), 4) if accuracies else None,
+        "expected_calibration_error": compute_ece(confidences, accuracies) if accuracies else None,
+        "latency_avg_ms": round(float(np.mean(latencies)), 2) if latencies else 0.0,
+        "latency_p95_ms": round(float(np.percentile(latencies, 95)), 2) if latencies else 0.0,
+        "escalation_rate": round(escalated / n, 4),
+    }
+
+
 def compute_metrics(
     run_id: str,
     db_path: str | Path | None = None,
@@ -136,6 +178,14 @@ def compute_metrics(
     guardrail_trips = sum(1 for r in history if r["guardrail_status"] == "TRIPPED")
     degraded_count = sum(1 for r in history if r["is_degraded"] == 1)
 
+    pii_detected = sum(1 for r in history if _has_violation(r, _PII_PREFIXES))
+    halluc_suppressed = sum(1 for r in history if _has_violation(r, _HALLUCINATION_PREFIXES))
+
+    per_provider: dict[str, dict[str, Any]] = {}
+    for provider in provider_distribution:
+        rows = [r for r in history if r.get("provider_used", "unknown") == provider]
+        per_provider[provider] = _provider_stats(rows, ground_truth_map)
+
     report = {
         "run_id": run_id,
         "volume": {
@@ -168,6 +218,11 @@ def compute_metrics(
             "degraded_count": degraded_count,
             "degraded_rate": round(degraded_count / total_tickets, 4),
             "provider_distribution": provider_distribution,
+            "pii_detected_count": pii_detected,
+            "pii_detection_rate": round(pii_detected / total_tickets, 4),
+            "hallucination_suppressed_count": halluc_suppressed,
+            "hallucination_suppression_rate": round(halluc_suppressed / total_tickets, 4),
+            "per_provider": per_provider,
         },
     }
     return report

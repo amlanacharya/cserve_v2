@@ -172,6 +172,7 @@ def audit_node(state: dict[str, Any]) -> dict[str, Any]:
         "provider_used": state.get("provider_used", "offline_mock"),
         "is_degraded": state.get("is_degraded", False),
         "error_details": state.get("error_details"),
+        "guardrail_violations": state.get("guardrail_violations", []),
         "latency_ms": _elapsed_ms(state.get("started_at")),
     }
 

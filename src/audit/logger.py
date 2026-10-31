@@ -31,7 +31,8 @@ CREATE TABLE IF NOT EXISTS decision_log (
     provider_used         TEXT    NOT NULL CHECK (provider_used IN ('groq','gemini','offline_mock')),
     is_degraded           INTEGER NOT NULL CHECK (is_degraded IN (0,1)),
     error_details         TEXT,
-    latency_ms            REAL    NOT NULL
+    guardrail_violations  TEXT    NOT NULL DEFAULT '[]',
+    latency_ms           REAL    NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_decision_log_ticket ON decision_log (ticket_id);
 CREATE INDEX IF NOT EXISTS idx_decision_log_run    ON decision_log (run_id);
@@ -64,6 +65,11 @@ class AuditLogger:
         with _DB_LOCK:
             with self._get_connection() as conn:
                 conn.executescript(DDL_STATEMENTS)
+                existing = {r[1] for r in conn.execute("PRAGMA table_info(decision_log)")}
+                if "guardrail_violations" not in existing:
+                    conn.execute(
+                        "ALTER TABLE decision_log ADD COLUMN guardrail_violations TEXT NOT NULL DEFAULT '[]'"
+                    )
                 conn.commit()
 
     def log_decision(self, record: dict[str, Any]) -> None:
@@ -80,13 +86,18 @@ class AuditLogger:
         if isinstance(citations, list):
             citations = json.dumps(citations)
 
+        violations = record.get("guardrail_violations") or []
+        if not isinstance(violations, str):
+            violations = json.dumps(list(violations))
+
         sql = """
         INSERT INTO decision_log (
             run_id, ticket_id, channel, logged_at, inferred_intent,
             intent_confidence, intent_alternatives, urgency, top_retrieval_score,
             must_not_auto_respond, routing_action, routing_reason, guardrail_status,
-            final_disposition, citations, provider_used, is_degraded, error_details, latency_ms
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            final_disposition, citations, provider_used, is_degraded, error_details,
+            guardrail_violations, latency_ms
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         params = (
             str(record["run_id"]),
@@ -107,6 +118,7 @@ class AuditLogger:
             str(record["provider_used"]),
             1 if record.get("is_degraded") else 0,
             str(record.get("error_details")) if record.get("error_details") else None,
+            violations,
             float(record.get("latency_ms", 0.0)),
         )
 
