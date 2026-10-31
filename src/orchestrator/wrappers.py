@@ -4,6 +4,7 @@ import traceback
 from typing import Any, Callable
 from src.core.models import CanonicalTicket
 from src.core.types import ESCALATION_URGENCY, OFFLINE_PROVIDER, UNKNOWN_INTENT
+from src.ingest.normalizer import redact_pii_counted
 
 logger = logging.getLogger(__name__)
 
@@ -13,12 +14,15 @@ def _normalize_fallback(state: dict[str, Any], exc: Exception) -> dict[str, Any]
     channel = str(raw.get("channel", "email")).lower().strip()
     if channel not in ("email", "chat", "docs_comment", "forum"):
         channel = "email"
+    # The fallback body must not leak raw PII downstream, and the audit must still count it.
+    body, redactions = redact_pii_counted(str(raw.get("body", "")))
     return {
         "canonical_ticket": CanonicalTicket(
             ticket_id=str(raw.get("ticket_id", "FALLBACK-ID")),
             channel=channel,  # type: ignore[arg-type]
-            body=str(raw.get("body", "")),
-        )
+            body=body,
+        ),
+        "pii_redactions_count": redactions,
     }
 
 
@@ -38,8 +42,7 @@ _FALLBACKS: dict[str, Callable[[dict[str, Any], Exception], dict[str, Any]]] = {
         "classification_provider": None,
         "failed_node": "classify_node",
     },
-    # failed_node marks the crash so metrics can tell it from a genuinely empty retrieval.
-    # Only one node name is kept: an earlier classify crash wins.
+    # failed_node drives routing (first crash wins); failed_nodes (set by safe_node) is the audit trail.
     "retrieval_node": lambda s, e: {
         "retrieved_docs": [],
         "top_retrieval_score": 0.0,
@@ -80,6 +83,7 @@ def safe_node(node_name: str):
                 logger.error(err_msg, exc_info=True)
                 updates: dict[str, Any] = {
                     "is_degraded": True,
+                    "failed_nodes": [*state.get("failed_nodes", []), node_name],
                     "error_details": f"{node_name}: {traceback.format_exc()}",
                 }
 

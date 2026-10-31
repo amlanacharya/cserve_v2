@@ -105,3 +105,13 @@ def test_genuine_offline_still_reports_offline_fallback_end_to_end(monkeypatch):
         {"channel": "chat", "ticket_id": "OFF-E2E", "message": "help me"}, run_id="RUN-OFF-E2E"
     )
     assert OFFLINE_REASON in result.routing_reason
+
+
+def test_normalize_crash_fallback_redacts_body_and_counts_redactions():
+    @safe_node(node_name="normalize_node")
+    def boom(state):
+        raise RuntimeError("x")
+
+    out = boom({"raw_ticket": {"ticket_id": "T", "channel": "email", "body": "mail me at bob@example.com"}})
+    assert "bob@example.com" not in out["canonical_ticket"].body
+    assert out["pii_redactions_count"] == 1

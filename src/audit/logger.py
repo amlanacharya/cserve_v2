@@ -44,22 +44,6 @@ CREATE TRIGGER IF NOT EXISTS decision_log_no_delete BEFORE DELETE ON decision_lo
 BEGIN SELECT RAISE(ABORT, 'decision_log is append-only'); END;
 """
 
-# Columns added after the first release, defined once: the fresh DDL embeds them and
-# _init_db ALTERs the missing ones into pre-existing databases.
-# Nullable ones (retrieved_doc_ids, classification_provider, retrieval_k, failed_node) keep legacy
-# rows distinguishable: NULL means "written before the column existed" (failed_node: "no crash").
-_ADDITIVE_COLUMNS = {
-    "guardrail_violations": "TEXT NOT NULL DEFAULT '[]'",
-    "retrieved_doc_ids": "TEXT",
-    "classification_provider": (
-        "TEXT CHECK (classification_provider IS NULL OR classification_provider IN (@PROVIDERS@))"
-    ),
-    "pii_redactions_count": "INTEGER NOT NULL DEFAULT 0",
-    "retrieval_k": "INTEGER",
-    "failed_node": "TEXT",
-}
-
-
 def _resolve_enums(sql: str) -> str:
     return (
         sql.replace("@URGENCIES@", sql_in_list(URGENCIES))
@@ -68,15 +52,42 @@ def _resolve_enums(sql: str) -> str:
     )
 
 
+# Columns added after the first release, defined once and resolved once: the fresh DDL embeds
+# them and _init_db ALTERs the missing ones into pre-existing databases.
+# Nullable ones (retrieved_doc_ids, classification_provider, retrieval_k, failed_nodes) keep legacy
+# rows distinguishable: NULL means "written before the column existed" (failed_nodes: "no crash").
+_ADDITIVE_COLUMNS = {
+    name: _resolve_enums(definition)
+    for name, definition in {
+        "guardrail_violations": "TEXT NOT NULL DEFAULT '[]'",
+        "retrieved_doc_ids": "TEXT",
+        "classification_provider": (
+            "TEXT CHECK (classification_provider IS NULL OR classification_provider IN (@PROVIDERS@))"
+        ),
+        "pii_redactions_count": "INTEGER NOT NULL DEFAULT 0",
+        "retrieval_k": "INTEGER",
+        "failed_nodes": "TEXT",
+    }.items()
+}
+
 DDL_STATEMENTS = _resolve_enums(
     DDL_STATEMENTS.replace(
         "@ADDITIVE_COLUMNS@",
         "\n".join(f"    {name:<21} {definition}," for name, definition in _ADDITIVE_COLUMNS.items()),
     )
 )
-_ADDITIVE_COLUMNS = {name: _resolve_enums(definition) for name, definition in _ADDITIVE_COLUMNS.items()}
 
 _DB_LOCK = threading.Lock()
+_INITIALIZED: set[str] = set()  # resolved db paths whose schema is already created and migrated
+
+
+def _add_column(conn: sqlite3.Connection, column: str, definition: str) -> None:
+    """ALTER in a column, tolerating another process having added it since we checked."""
+    try:
+        conn.execute(f"ALTER TABLE decision_log ADD COLUMN {column} {definition}")
+    except sqlite3.OperationalError as e:
+        if "duplicate column name" not in str(e):
+            raise
 
 
 class AuditLogger:
@@ -84,7 +95,10 @@ class AuditLogger:
         settings = get_settings()
         self.db_path = Path(db_path or settings.decision_log_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        self._init_db()
+        key = str(self.db_path.resolve())
+        if key not in _INITIALIZED or not self.db_path.exists():
+            self._init_db()
+            _INITIALIZED.add(key)
 
     def _get_connection(self) -> sqlite3.Connection:
         conn = sqlite3.connect(str(self.db_path), timeout=5.0)
@@ -100,7 +114,7 @@ class AuditLogger:
                 existing = {r[1] for r in conn.execute("PRAGMA table_info(decision_log)")}
                 for column, definition in _ADDITIVE_COLUMNS.items():
                     if column not in existing:
-                        conn.execute(f"ALTER TABLE decision_log ADD COLUMN {column} {definition}")
+                        _add_column(conn, column, definition)
                 conn.commit()
 
     def log_decision(self, record: dict[str, Any]) -> None:
@@ -126,7 +140,7 @@ class AuditLogger:
             retrieved = json.dumps(list(retrieved))
         class_provider = record.get("classification_provider")
         retrieval_k = record.get("retrieval_k")
-        failed_node = record.get("failed_node")
+        failed_nodes = record.get("failed_nodes")
 
         # One ordered (column, value) list drives the column list, placeholders and params.
         row = (
@@ -153,7 +167,7 @@ class AuditLogger:
             ("classification_provider", str(class_provider) if class_provider else None),
             ("pii_redactions_count", int(record.get("pii_redactions_count") or 0)),
             ("retrieval_k", int(retrieval_k) if retrieval_k is not None else None),
-            ("failed_node", str(failed_node) if failed_node else None),
+            ("failed_nodes", json.dumps(list(failed_nodes)) if failed_nodes else None),
             ("latency_ms", float(record.get("latency_ms", 0.0))),
         )
         sql = (

@@ -68,13 +68,25 @@ def _pii_redactions(row: dict[str, Any]) -> int:
     return int(row.get("pii_redactions_count") or 0)
 
 
+def _failed_nodes(row: dict[str, Any]) -> list[str]:
+    """Nodes whose crash fallback fired for this row; empty for healthy and legacy rows."""
+    raw = row.get("failed_nodes")
+    if not raw:
+        return []
+    try:
+        nodes = json.loads(raw) if isinstance(raw, str) else raw
+    except Exception:
+        return []
+    return [str(n) for n in nodes] if isinstance(nodes, list) else []
+
+
 def _classification_provider(row: dict[str, Any]) -> str:
     """Provider that classified the ticket.
 
     A classify crash has no provider (bucketed apart from offline_mock); legacy rows (NULL
     classification_provider, no crash) fall back to provider_used.
     """
-    if row.get("failed_node") == "classify_node":
+    if "classify_node" in _failed_nodes(row):
         return CLASSIFY_FAILED
     return row.get("classification_provider") or row.get("provider_used", "unknown")
 
@@ -88,7 +100,7 @@ def _retrieved_doc_ids(row: dict[str, Any]) -> list[str] | None:
         ids = json.loads(raw) if isinstance(raw, str) else raw
     except Exception:
         return None
-    return [str(i) for i in ids]
+    return [str(i) for i in ids] if isinstance(ids, list) else None
 
 
 def _provider_stats(
@@ -174,7 +186,7 @@ def compute_metrics(
     retrieval_eval_count = 0
     ks_used: list[int] = []
     # A crashed retrieval node is a failure, not a measurement: it is reported, not scored 0.
-    retrieval_failed = sum(1 for r in history if r.get("failed_node") == "retrieval_node")
+    retrieval_failed = sum(1 for r in history if "retrieval_node" in _failed_nodes(r))
 
     for r in history:
         tid = r["ticket_id"]
@@ -194,7 +206,7 @@ def compute_metrics(
             # independent of the routing score gate. Legacy rows without a retrieval log are skipped.
             expected_docs = labels.get("expected_doc_ids", [])
             retrieved = _retrieved_doc_ids(r)
-            if expected_docs and retrieved is not None and r.get("failed_node") != "retrieval_node":
+            if expected_docs and retrieved is not None and "retrieval_node" not in _failed_nodes(r):
                 retrieval_eval_count += 1
                 row_k = k or r.get("retrieval_k") or default_k
                 ks_used.append(row_k)
@@ -233,10 +245,12 @@ def compute_metrics(
 
     # Per-provider accuracy/ECE are attributed to the provider that classified the ticket,
     # not the one that generated the draft (provider_used is overwritten by generation).
-    per_provider: dict[str, dict[str, Any]] = {}
-    for provider in dict.fromkeys(_classification_provider(r) for r in history):
-        rows = [r for r in history if _classification_provider(r) == provider]
-        per_provider[provider] = _provider_stats(rows, ground_truth_map)
+    rows_by_provider: dict[str, list[dict[str, Any]]] = {}
+    for r in history:
+        rows_by_provider.setdefault(_classification_provider(r), []).append(r)
+    per_provider = {
+        provider: _provider_stats(rows, ground_truth_map) for provider, rows in rows_by_provider.items()
+    }
 
     report = {
         "run_id": run_id,
