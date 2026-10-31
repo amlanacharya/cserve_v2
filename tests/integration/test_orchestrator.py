@@ -52,6 +52,22 @@ def test_orchestrator_safety_veto_path():
     assert "must_not_auto_respond" in result.routing_reason or "refund" in result.routing_reason.lower()
 
 
+def test_audit_row_records_measured_latency():
+    result = SupportOrchestrator().process_ticket(
+        {
+            "channel": "chat",
+            "ticket_id": "ORCH-LATENCY-01",
+            "message": "How do I rotate my API key?",
+        },
+        run_id="TEST-RUN-LATENCY",
+    )
+    row = get_decision_history(ticket_id="ORCH-LATENCY-01")[-1]
+    assert row["latency_ms"] > 0
+    # The audit row is written just before the pipeline returns, so it can
+    # only be a little shorter than the latency reported to the caller.
+    assert row["latency_ms"] <= result.latency_ms
+
+
 def test_api_process_ticket_endpoint(test_client):
     payload = {
         "channel": "forum",

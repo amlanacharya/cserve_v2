@@ -42,7 +42,7 @@ class AgentState(TypedDict, total=False):
         "AUTO_RESOLVED", "ESCALATED_ROUTER", "ESCALATED_GUARDRAIL", "ESCALATED_ERROR"
     ]
     provider_used: str
-    execution_latency_ms: float
+    started_at: float  # time.perf_counter() at pipeline entry
     is_degraded: bool
     error_details: str | None
 

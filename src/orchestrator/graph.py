@@ -96,7 +96,7 @@ class SupportOrchestrator:
             "error_details": None,
             "guardrail_violations": [],
             "citations": [],
-            "execution_latency_ms": 0.0,
+            "started_at": start_time,
         }
 
         final_state = self.workflow.invoke(initial_state)
