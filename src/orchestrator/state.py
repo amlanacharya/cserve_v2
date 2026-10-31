@@ -55,6 +55,7 @@ class AgentState(TypedDict, total=False):
     started_at: float  # time.perf_counter() at pipeline entry
     is_degraded: bool
     error_details: str | None
+    failed_node: str | None  # set by a node's crash fallback; routing reports NODE_FAILURE
     db_path: str | None
 
 

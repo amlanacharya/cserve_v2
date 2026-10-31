@@ -56,6 +56,7 @@ def routing_node(state: dict[str, Any]) -> dict[str, Any]:
         urgency=state["urgency"],
         must_not_auto_respond=state["must_not_auto_respond"],
         provider_used=state.get("provider_used"),
+        node_failure=state.get("failed_node"),
     )
     return {
         "routing_action": action,

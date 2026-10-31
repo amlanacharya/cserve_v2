@@ -72,3 +72,36 @@ def test_normalize_fallback_preserves_channel():
     assert out["canonical_ticket"].channel == "forum"
     out = boom({"raw_ticket": {"ticket_id": "T", "channel": "bogus", "body": "b"}})
     assert out["canonical_ticket"].channel == "email"
+
+
+def test_route_reason_names_node_failure_not_offline_fallback():
+    action, reason = evaluate_route(
+        0.0, 0.9, "HIGH", True, provider_used="offline_mock", node_failure="classify_node"
+    )
+    assert action == "ESCALATE"
+    assert "NODE_FAILURE: classify_node" in reason
+    assert "OFFLINE_FALLBACK" not in reason
+
+
+def test_classify_crash_reports_node_failure_end_to_end(monkeypatch):
+    from src.orchestrator import SupportOrchestrator, nodes
+
+    def boom(_ticket):
+        raise RuntimeError("simulated classify crash")
+
+    monkeypatch.setattr(nodes, "classify_ticket", boom)
+    result = SupportOrchestrator().process_ticket(
+        {"channel": "chat", "ticket_id": "NF-1", "message": "help me"}, run_id="RUN-NF-1"
+    )
+    assert result.is_degraded is True
+    assert "NODE_FAILURE: classify_node" in result.routing_reason
+    assert "OFFLINE_FALLBACK" not in result.routing_reason
+
+
+def test_genuine_offline_still_reports_offline_fallback_end_to_end(monkeypatch):
+    from src.orchestrator import SupportOrchestrator
+
+    result = SupportOrchestrator().process_ticket(
+        {"channel": "chat", "ticket_id": "OFF-E2E", "message": "help me"}, run_id="RUN-OFF-E2E"
+    )
+    assert OFFLINE_REASON in result.routing_reason

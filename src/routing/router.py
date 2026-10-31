@@ -1,5 +1,5 @@
 from typing import Literal
-from src.core.types import Provider, RoutingAction, Urgency
+from src.core.types import OFFLINE_PROVIDER, Provider, RoutingAction, Urgency
 from src.core.config import get_settings
 
 
@@ -11,6 +11,7 @@ def evaluate_route(
     tau: float | None = None,
     sigma: float | None = None,
     provider_used: Provider | None = None,
+    node_failure: str | None = None,
 ) -> tuple[RoutingAction, str]:
     """
     Deterministic dual-gate routing pure function:
@@ -53,9 +54,12 @@ def evaluate_route(
     else:
         reasons.append("safe=True")
 
-    if provider_used == "offline_mock":
+    if node_failure or provider_used == OFFLINE_PROVIDER:
         action: RoutingAction = "ESCALATE"
-        routing_reason = "OFFLINE_FALLBACK: all network providers unavailable"
+        if node_failure:
+            routing_reason = f"NODE_FAILURE: {node_failure}"
+        else:
+            routing_reason = "OFFLINE_FALLBACK: all network providers unavailable"
         if failed_conditions:
             routing_reason += " (" + "; ".join(failed_conditions) + ")"
     elif failed_conditions:
