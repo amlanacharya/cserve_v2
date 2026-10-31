@@ -29,9 +29,12 @@ def safe_node(node_name: str, fallback_action: str = ""):
 
                 if node_name == "normalize_node":
                     raw = state.get("raw_ticket", {})
+                    channel = str(raw.get("channel", "email")).lower().strip()
+                    if channel not in ("email", "chat", "docs_comment", "forum"):
+                        channel = "email"
                     updates["canonical_ticket"] = CanonicalTicket(
                         ticket_id=str(raw.get("ticket_id", "FALLBACK-ID")),
-                        channel="email",
+                        channel=channel,  # type: ignore[arg-type]
                         body=str(raw.get("body", "")),
                     )
 

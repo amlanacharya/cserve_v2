@@ -9,6 +9,7 @@ def evaluate_route(
     must_not_auto_respond: bool,
     tau: float | None = None,
     sigma: float | None = None,
+    provider_used: str | None = None,
 ) -> tuple[Literal["AUTO_RESPOND", "ESCALATE"], str]:
     """
     Deterministic dual-gate routing pure function:
@@ -51,8 +52,13 @@ def evaluate_route(
     else:
         reasons.append("safe=True")
 
-    if failed_conditions:
+    if provider_used == "offline_mock":
         action: Literal["AUTO_RESPOND", "ESCALATE"] = "ESCALATE"
+        routing_reason = "OFFLINE_FALLBACK: all network providers unavailable"
+        if failed_conditions:
+            routing_reason += " (" + "; ".join(failed_conditions) + ")"
+    elif failed_conditions:
+        action = "ESCALATE"
         routing_reason = "Escalated: " + "; ".join(failed_conditions)
     else:
         action = "AUTO_RESPOND"

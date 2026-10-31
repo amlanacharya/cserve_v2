@@ -9,13 +9,7 @@ _MEMORY_CACHE: dict[str, dict[str, Any]] = {}
 
 def compute_ticket_hash(ticket: CanonicalTicket) -> str:
     """Computes a deterministic sha256 hash from a canonical ticket."""
-    payload = {
-        "ticket_id": ticket.ticket_id,
-        "channel": ticket.channel,
-        "subject": ticket.subject or "",
-        "body": ticket.body,
-    }
-    dumped = json.dumps(payload, sort_keys=True)
+    dumped = json.dumps(ticket.model_dump(mode="json"), sort_keys=True)
     return hashlib.sha256(dumped.encode("utf-8")).hexdigest()
 
 

@@ -89,6 +89,8 @@ def classify_ticket(ticket: CanonicalTicket) -> dict[str, Any]:
         "provider_used": provider_used,
     }
 
-    cache.set(ticket_hash, result)
+    # Offline fail-safe results must never be replayed after providers recover
+    if provider_used != "offline_mock":
+        cache.set(ticket_hash, result)
     return result
 
