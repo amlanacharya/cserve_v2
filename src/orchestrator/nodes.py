@@ -7,9 +7,9 @@ from src.core.config import get_settings
 from src.generation.generator import generate_response
 from src.guardrails import evaluate_guardrails
 from src.ingest.normalizer import normalize_ticket
+from src.orchestrator.state import RunSnapshot
 from src.orchestrator.wrappers import safe_node
 from src.retrieval.store import query_documents
-from src.routing.escalation import build_escalation_packet
 from src.routing.router import evaluate_route
 
 
@@ -110,29 +110,19 @@ def guardrails_node(state: dict[str, Any]) -> dict[str, Any]:
 
 @safe_node(node_name="escalate_node")
 def escalate_node(state: dict[str, Any]) -> dict[str, Any]:
-    ticket = state["canonical_ticket"]
-    disp = state.get("final_disposition")
+    _ = state["canonical_ticket"]
+    snap = RunSnapshot.from_state(state)
+    disp = snap.final_disposition if snap.was_set("final_disposition") else None
 
     if not disp or disp == "AUTO_RESOLVED":
-        if state.get("guardrail_status") == "TRIPPED":
+        if snap.guardrail_status == "TRIPPED":
             disp = "ESCALATED_GUARDRAIL"
-        elif state.get("routing_action") == "ESCALATE":
+        elif snap.was_set("routing_action") and snap.routing_action == "ESCALATE":
             disp = "ESCALATED_ROUTER"
         else:
             disp = "ESCALATED_ERROR"
 
-    packet = build_escalation_packet(
-        ticket_id=ticket.ticket_id,
-        final_disposition=disp,
-        routing_reason=state.get("routing_reason", "Escalated"),
-        inferred_intent=state.get("inferred_intent", "unknown"),
-        intent_confidence=state.get("confidence", 0.0),
-        intent_alternatives=state.get("intent_alternatives", {}),
-        urgency=state.get("urgency", "MEDIUM"),
-        candidate_docs=state.get("retrieved_docs", []),
-        provider_used=state.get("provider_used", "offline_mock"),
-        guardrail_violations=state.get("guardrail_violations", []),
-    )
+    packet = snap.to_escalation_packet(disp)
 
     return {
         "final_disposition": disp,
@@ -150,32 +140,12 @@ def _elapsed_ms(started_at: float | None) -> float:
 
 @safe_node(node_name="audit_node")
 def audit_node(state: dict[str, Any]) -> dict[str, Any]:
-    ticket = state.get("canonical_ticket")
+    snap = RunSnapshot.from_state(state)
+    ticket = snap.canonical_ticket
     if not ticket:
         return {}
 
-    record = {
-        "run_id": state.get("run_id", "default_run"),
-        "ticket_id": ticket.ticket_id,
-        "channel": ticket.channel,
-        "inferred_intent": state.get("inferred_intent", "unknown"),
-        "intent_confidence": state.get("confidence", 0.0),
-        "intent_alternatives": state.get("intent_alternatives", {}),
-        "urgency": state.get("urgency", "MEDIUM"),
-        "top_retrieval_score": state.get("top_retrieval_score", 0.0),
-        "must_not_auto_respond": state.get("must_not_auto_respond", False),
-        "routing_action": state.get("routing_action", "ESCALATE"),
-        "routing_reason": state.get("routing_reason", ""),
-        "guardrail_status": state.get("guardrail_status"),
-        "final_disposition": state.get("final_disposition", "ESCALATED_ERROR"),
-        "citations": state.get("citations", []),
-        "provider_used": state.get("provider_used", "offline_mock"),
-        "is_degraded": state.get("is_degraded", False),
-        "error_details": state.get("error_details"),
-        "guardrail_violations": state.get("guardrail_violations", []),
-        "latency_ms": _elapsed_ms(state.get("started_at")),
-    }
-
+    record = snap.to_audit_record(_elapsed_ms(snap.started_at))
     try:
         log_decision(record, db_path=state.get("db_path"))
     except Exception as e:

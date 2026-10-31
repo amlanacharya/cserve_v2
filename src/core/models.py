@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from typing import Any, Literal
 from pydantic import BaseModel, Field
+from src.core.types import Disposition, EscalatedDisposition, Provider, Urgency
 
 
 class CanonicalTicket(BaseModel):
@@ -25,31 +26,31 @@ class DocumentChunk(BaseModel):
 
 class EscalationPacket(BaseModel):
     ticket_id: str
-    final_disposition: Literal["ESCALATED_ROUTER", "ESCALATED_GUARDRAIL", "ESCALATED_ERROR"]
+    final_disposition: EscalatedDisposition
     routing_reason: str
     inferred_intent: str
     intent_confidence: float
     intent_alternatives: dict[str, float] = Field(default_factory=dict)
-    urgency: Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+    urgency: Urgency
     candidate_docs: list[DocumentChunk] = Field(default_factory=list)
     guardrail_violations: list[str] = Field(default_factory=list)
-    provider_used: str
+    provider_used: Provider
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class ProcessedTicketResult(BaseModel):
     ticket_id: str
     channel: str
-    final_disposition: Literal["AUTO_RESOLVED", "ESCALATED_ROUTER", "ESCALATED_GUARDRAIL", "ESCALATED_ERROR"]
+    final_disposition: Disposition
     final_response: str | None = None
     citations: list[str] = Field(default_factory=list)
     escalation_packet: EscalationPacket | None = None
     inferred_intent: str
     intent_confidence: float
-    urgency: str
+    urgency: Urgency
     top_retrieval_score: float = 0.0
     routing_reason: str
-    provider_used: str
+    provider_used: Provider
     is_degraded: bool = False
     latency_ms: float = 0.0
 
