@@ -1,5 +1,5 @@
 import re
-from src.ingest.normalizer import (
+from src.core.patterns import (
     API_KEY_PATTERN,
     BEARER_TOKEN_PATTERN,
     CC_CANDIDATE_PATTERN,

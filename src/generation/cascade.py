@@ -59,53 +59,83 @@ def _backoff_if_retryable(provider: str, exc: Exception, attempt: int, settings:
     return True
 
 
-def offline_heuristic_classification(prompt_text: str) -> str:
-    """Deterministic local keyword matching for intent and urgency."""
-    text = prompt_text.lower()
+def _call_groq(
+    settings: Any, system_prompt: str, user_prompt: str, temperature: float, task_type: str, model_override: str | None
+) -> str | None:
+    """Tier 1: Groq (OpenAI-compatible). Returns text, or None to cascade."""
+    groq_model = model_override or (
+        settings.groq_classify_model if task_type == "classification" else settings.groq_gen_model
+    )
+    client = OpenAI(
+        base_url=settings.groq_base_url,
+        api_key=settings.groq_api_key,
+        timeout=settings.provider_request_timeout,
+        max_retries=0,  # retry budget is ours (spec 1); no hidden SDK retries
+    )
 
-    # Intent detection
-    intent = "general_inquiry"
-    if any(k in text for k in ["api key", "apikey", "secret key", "rotate key", "401 unauthorized"]):
-        intent = "api_key_issue"
-    elif any(k in text for k in ["mfa", "authenticator", "two-factor", "2fa", "credential", "password", "locked out"]):
-        intent = "authentication_failure"
-    elif any(k in text for k in ["sso", "saml", "identity provider", "okta"]):
-        intent = "sso_configuration"
-    elif any(k in text for k in ["invoice", "charge", "billing", "payment", "card", "refund", "subscription"]):
-        intent = "billing_query"
-    elif any(k in text for k in ["quota", "overage", "exceeded limit"]):
-        intent = "quota_or_overage"
-    elif any(k in text for k in ["rate limit", "429", "throttled", "too many requests"]):
-        intent = "rate_limit"
-    elif any(k in text for k in ["rollback", "rolled back"]):
-        intent = "rollback_request"
-    elif any(k in text for k in ["deployment", "deploy", "container", "health check", "crashloop", "build fail"]):
-        intent = "deployment_failure"
-    elif any(k in text for k in ["database", "postgres", "sql", "db connection"]):
-        intent = "database_issue"
-    elif any(k in text for k in ["slow", "latency", "timeout", "degradation", "lag"]):
-        intent = "performance_degradation"
-    elif any(k in text for k in ["security incident", "breach", "vulnerability", "exploit"]):
-        intent = "security_incident"
-    elif any(k in text for k in ["unclear", "follow up", "any update", "hello?"]):
-        intent = "unclear_request"
+    for attempt in range(settings.provider_max_retries + 1):
+        try:
+            response = client.chat.completions.create(
+                model=groq_model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=temperature,
+            )
+            text = response.choices[0].message.content or ""
+            return text.strip()
+        except Exception as e:
+            if _backoff_if_retryable("Groq", e, attempt, settings):
+                continue
+            logger.warning(f"Groq Tier 1 failed: {e}. Cascading to Tier 2...")
+            break
+    return None
 
-    # Urgency detection
-    urgency = "LOW"
-    if any(k in text for k in ["production down", "outage", "disaster", "emergency", "critical", "breach"]):
-        urgency = "CRITICAL"
-    elif any(k in text for k in ["urgent", "blocking", "broken", "fails", "fail", "error", "high priority"]):
-        urgency = "HIGH"
-    elif any(k in text for k in ["issue", "problem", "help", "how do i", "cannot", "can't"]):
-        urgency = "MEDIUM"
 
-    output = {
-        "inferred_intent": intent,
-        "intent_alternatives": {},
-        "urgency": urgency,
-        "confidence": 0.50,
+def _call_gemini(settings: Any, system_prompt: str, user_prompt: str, temperature: float) -> str | None:
+    """Tier 2: Google Gemini. Returns text, or None to cascade."""
+    gemini_url = (
+        f"https://generativelanguage.googleapis.com/v1beta/models/{settings.gemini_model}:generateContent"
+        f"?key={settings.gemini_api_key}"
+    )
+    gemini_payload = {
+        "contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
+        "systemInstruction": {"parts": [{"text": system_prompt}]},
+        "generationConfig": {"temperature": temperature},
     }
-    return json.dumps(output)
+
+    for attempt in range(settings.provider_max_retries + 1):
+        try:
+            with httpx.Client(timeout=settings.provider_request_timeout) as http_client:
+                resp = http_client.post(gemini_url, json=gemini_payload)
+                resp.raise_for_status()
+                data = resp.json()
+                candidates = data.get("candidates", [])
+                if candidates and "content" in candidates[0]:
+                    parts = candidates[0]["content"].get("parts", [])
+                    if parts and "text" in parts[0]:
+                        return parts[0]["text"].strip()
+        except Exception as e:
+            if _backoff_if_retryable("Gemini", e, attempt, settings):
+                continue
+            logger.warning(f"Gemini Tier 2 failed: {e}. Cascading to Tier 3...")
+            break
+    return None
+
+
+def _call_offline(user_prompt: str, task_type: str) -> tuple[str, str]:
+    """Tier 3: offline fail-safe."""
+    if task_type == "classification":
+        logger.info("Executing Offline Fail-Safe Classification Engine")
+        # Lazy import: classify.classifier imports this module.
+        from src.classify.heuristic import offline_heuristic_classification
+
+        return offline_heuristic_classification(user_prompt), "offline_mock"
+
+    # For generation, offline fail-safe engine never generates speculative answers
+    logger.info("Offline Fail-Safe: suppressing speculative answer generation")
+    return "", "offline_mock"
 
 
 def call_cascade(
@@ -124,80 +154,14 @@ def call_cascade(
     """
     settings = get_settings()
 
-    # ==========================================
-    # Tier 1: Primary - Groq API (OpenAI-compatible)
-    # ==========================================
     if settings.groq_api_key:
-        groq_model = model_override or (
-            settings.groq_classify_model
-            if task_type == "classification"
-            else settings.groq_gen_model
-        )
-        client = OpenAI(
-            base_url=settings.groq_base_url,
-            api_key=settings.groq_api_key,
-            timeout=settings.provider_request_timeout,
-            max_retries=0,  # retry budget is ours (spec 1); no hidden SDK retries
-        )
+        text = _call_groq(settings, system_prompt, user_prompt, temperature, task_type, model_override)
+        if text is not None:
+            return text, "groq"
 
-        for attempt in range(settings.provider_max_retries + 1):
-            try:
-                response = client.chat.completions.create(
-                    model=groq_model,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt},
-                    ],
-                    temperature=temperature,
-                )
-                text = response.choices[0].message.content or ""
-                return text.strip(), "groq"
-            except Exception as e:
-                if _backoff_if_retryable("Groq", e, attempt, settings):
-                    continue
-                logger.warning(f"Groq Tier 1 failed: {e}. Cascading to Tier 2...")
-                break
-
-    # ==========================================
-    # Tier 2: Secondary - Google Gemini API
-    # ==========================================
     if settings.gemini_api_key:
-        gemini_model = settings.gemini_model
-        gemini_url = (
-            f"https://generativelanguage.googleapis.com/v1beta/models/{gemini_model}:generateContent"
-            f"?key={settings.gemini_api_key}"
-        )
-        gemini_payload = {
-            "contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
-            "systemInstruction": {"parts": [{"text": system_prompt}]},
-            "generationConfig": {"temperature": temperature},
-        }
+        text = _call_gemini(settings, system_prompt, user_prompt, temperature)
+        if text is not None:
+            return text, "gemini"
 
-        for attempt in range(settings.provider_max_retries + 1):
-            try:
-                with httpx.Client(timeout=settings.provider_request_timeout) as http_client:
-                    resp = http_client.post(gemini_url, json=gemini_payload)
-                    resp.raise_for_status()
-                    data = resp.json()
-                    candidates = data.get("candidates", [])
-                    if candidates and "content" in candidates[0]:
-                        parts = candidates[0]["content"].get("parts", [])
-                        if parts and "text" in parts[0]:
-                            return parts[0]["text"].strip(), "gemini"
-            except Exception as e:
-                if _backoff_if_retryable("Gemini", e, attempt, settings):
-                    continue
-                logger.warning(f"Gemini Tier 2 failed: {e}. Cascading to Tier 3...")
-                break
-
-    # ==========================================
-    # Tier 3: Tertiary - Offline Fail-Safe Engine
-    # ==========================================
-    if task_type == "classification":
-        logger.info("Executing Offline Fail-Safe Classification Engine")
-        return offline_heuristic_classification(user_prompt), "offline_mock"
-
-    # For generation, offline fail-safe engine never generates speculative answers
-    logger.info("Offline Fail-Safe: suppressing speculative answer generation")
-    return "", "offline_mock"
-
+    return _call_offline(user_prompt, task_type)
