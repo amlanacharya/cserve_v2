@@ -646,7 +646,7 @@ The implementation is partitioned into six sequential, incremental phases aligne
         *   Tier 1 (Primary): Groq API (`llama-3.3-70b-versatile`) via OpenAI SDK transport.
         *   Tier 2 (Secondary): Google Gemini API (`gemini-2.5-flash`) via `httpx.Client`.
         *   Retry logic: Exponential backoff with full jitter on HTTP 429 ($b_0 = 1.0\text{s}$, $b_{\max} = 8.0\text{s}$, max 1 retry).
-        *   Tier 3 (Tertiary Offline Mock): Local Deterministic Heuristic Engine. Matches keywords to intent (`billing`, `auth`, `deploy`, `rate_limit`, `general`), retrieves local ChromaDB chunks, sets `must_not_auto_respond = True`, routes to `ESCALATE`, and never generates draft responses.
+        *   Tier 3 (Tertiary Offline Mock): Local Deterministic Heuristic Engine. Matches keywords to one of the 21 dataset intent labels (e.g. `billing_query`, `authentication_failure`, `deployment_failure`, `rate_limit`), defaulting to `unclear_request` when nothing matches, retrieves local ChromaDB chunks, sets `must_not_auto_respond = True`, routes to `ESCALATE`, and never generates draft responses.
     *   `[Create] src/generation/generator.py`: Orchestrate prompt compilation, cascade query, and citation extraction.
     *   `[Create] src/guardrails/__init__.py`: Export `evaluate_guardrails`.
     *   `[Create] src/guardrails/pii.py`: Scan drafts for email, phone, bearer tokens, API keys, and credit cards with Luhn checksum validation.

@@ -1,4 +1,5 @@
 import json
+from src.core.types import UNCLEAR_INTENT
 
 
 def offline_heuristic_classification(prompt_text: str) -> str:
@@ -6,7 +7,7 @@ def offline_heuristic_classification(prompt_text: str) -> str:
     text = prompt_text.lower()
 
     # Intent detection
-    intent = "general_inquiry"
+    intent = UNCLEAR_INTENT
     if any(k in text for k in ["api key", "apikey", "secret key", "rotate key", "401 unauthorized"]):
         intent = "api_key_issue"
     elif any(k in text for k in ["mfa", "authenticator", "two-factor", "2fa", "credential", "password", "locked out"]):
@@ -29,8 +30,6 @@ def offline_heuristic_classification(prompt_text: str) -> str:
         intent = "performance_degradation"
     elif any(k in text for k in ["security incident", "breach", "vulnerability", "exploit"]):
         intent = "security_incident"
-    elif any(k in text for k in ["unclear", "follow up", "any update", "hello?"]):
-        intent = "unclear_request"
 
     # Urgency detection
     urgency = "LOW"
