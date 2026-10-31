@@ -2,7 +2,8 @@ import json
 import time
 from pathlib import Path
 import pytest
-from src.ingest.normalizer import normalize_ticket, redact_pii, clean_text, is_luhn_valid
+from src.core.patterns import is_luhn_valid
+from src.ingest.normalizer import normalize_ticket, redact_pii, clean_text
 
 
 def test_email_ingestion():

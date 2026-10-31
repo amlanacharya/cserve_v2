@@ -1,11 +1,11 @@
-import re
 from src.core.patterns import (
     API_KEY_PATTERN,
     BEARER_TOKEN_PATTERN,
     CC_CANDIDATE_PATTERN,
     EMAIL_PATTERN,
     PHONE_PATTERN,
-    is_luhn_valid,
+    is_card_number,
+    is_phone_number,
 )
 
 
@@ -32,20 +32,12 @@ def scan_pii(text: str) -> list[str]:
         violations.append("PII_EMAIL_DETECTED")
 
     # Phone numbers
-    phone_matches = PHONE_PATTERN.finditer(text)
-    for m in phone_matches:
-        digits = re.sub(r"\D", "", m.group(0))
-        if len(digits) >= 10:
-            violations.append("PII_PHONE_DETECTED")
-            break
+    if any(is_phone_number(m.group(0)) for m in PHONE_PATTERN.finditer(text)):
+        violations.append("PII_PHONE_DETECTED")
 
     # Credit cards with Luhn check
-    cc_matches = CC_CANDIDATE_PATTERN.finditer(text)
-    for m in cc_matches:
-        digits = re.sub(r"\D", "", m.group(0))
-        if 13 <= len(digits) <= 19 and is_luhn_valid(digits):
-            violations.append("PII_CREDIT_CARD_DETECTED")
-            break
+    if any(is_card_number(m.group(0)) for m in CC_CANDIDATE_PATTERN.finditer(text)):
+        violations.append("PII_CREDIT_CARD_DETECTED")
 
     return violations
 

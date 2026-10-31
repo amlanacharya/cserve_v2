@@ -1,3 +1,4 @@
+import time
 from typing import Any, Mapping, TypedDict
 from pydantic import BaseModel, Field
 from src.core.models import CanonicalTicket, DocumentChunk, EscalationPacket, ProcessedTicketResult
@@ -57,6 +58,13 @@ class AgentState(TypedDict, total=False):
     error_details: str | None
     failed_node: str | None  # set by a node's crash fallback; routing reports NODE_FAILURE
     db_path: str | None
+
+
+def elapsed_ms(started_at: float | None) -> float:
+    """Milliseconds since a time.perf_counter() reading; 0.0 when no start was recorded."""
+    if started_at is None:
+        return 0.0
+    return round((time.perf_counter() - started_at) * 1000, 2)
 
 
 def initial_state(
