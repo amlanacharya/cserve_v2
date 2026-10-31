@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from src.core.config import get_settings
+from src.core.types import DISPOSITIONS, PROVIDERS, URGENCIES, sql_in_list
 
 logger = logging.getLogger(__name__)
 
@@ -19,16 +20,15 @@ CREATE TABLE IF NOT EXISTS decision_log (
     inferred_intent       TEXT    NOT NULL,
     intent_confidence     REAL    NOT NULL CHECK (intent_confidence BETWEEN 0 AND 1),
     intent_alternatives   TEXT    NOT NULL DEFAULT '{}',
-    urgency               TEXT    NOT NULL CHECK (urgency IN ('LOW','MEDIUM','HIGH','CRITICAL')),
+    urgency               TEXT    NOT NULL CHECK (urgency IN (@URGENCIES@)),
     top_retrieval_score   REAL    NOT NULL CHECK (top_retrieval_score BETWEEN 0 AND 1),
     must_not_auto_respond INTEGER NOT NULL CHECK (must_not_auto_respond IN (0,1)),
     routing_action        TEXT    NOT NULL CHECK (routing_action IN ('AUTO_RESPOND','ESCALATE')),
     routing_reason        TEXT    NOT NULL,
     guardrail_status      TEXT             CHECK (guardrail_status IS NULL OR guardrail_status IN ('PASSED','TRIPPED')),
-    final_disposition     TEXT    NOT NULL CHECK (final_disposition IN
-                              ('AUTO_RESOLVED','ESCALATED_ROUTER','ESCALATED_GUARDRAIL','ESCALATED_ERROR')),
+    final_disposition     TEXT    NOT NULL CHECK (final_disposition IN (@DISPOSITIONS@)),
     citations             TEXT    NOT NULL DEFAULT '[]',
-    provider_used         TEXT    NOT NULL CHECK (provider_used IN ('groq','gemini','offline_mock')),
+    provider_used         TEXT    NOT NULL CHECK (provider_used IN (@PROVIDERS@)),
     is_degraded           INTEGER NOT NULL CHECK (is_degraded IN (0,1)),
     error_details         TEXT,
     latency_ms            REAL    NOT NULL
@@ -42,6 +42,12 @@ BEGIN SELECT RAISE(ABORT, 'decision_log is append-only'); END;
 CREATE TRIGGER IF NOT EXISTS decision_log_no_delete BEFORE DELETE ON decision_log
 BEGIN SELECT RAISE(ABORT, 'decision_log is append-only'); END;
 """
+
+DDL_STATEMENTS = (
+    DDL_STATEMENTS.replace("@URGENCIES@", sql_in_list(URGENCIES))
+    .replace("@DISPOSITIONS@", sql_in_list(DISPOSITIONS))
+    .replace("@PROVIDERS@", sql_in_list(PROVIDERS))
+)
 
 _DB_LOCK = threading.Lock()
 

@@ -4,6 +4,7 @@ import re
 from typing import Any
 from src.classify.cache import compute_ticket_hash, get_classification_cache
 from src.core.models import CanonicalTicket
+from src.core.types import URGENCIES
 from src.generation.cascade import call_cascade
 from src.generation.prompts import (
     CLASSIFICATION_SYSTEM_PROMPT,
@@ -68,7 +69,7 @@ def classify_ticket(ticket: CanonicalTicket) -> dict[str, Any]:
         inferred_intent = str(parsed.get("inferred_intent", "general_inquiry")).strip()
         intent_alternatives = dict(parsed.get("intent_alternatives", {}))
         urgency = str(parsed.get("urgency", "MEDIUM")).strip().upper()
-        if urgency not in ("LOW", "MEDIUM", "HIGH", "CRITICAL"):
+        if urgency not in URGENCIES:
             urgency = "MEDIUM"
         confidence = float(parsed.get("confidence", 0.5))
         confidence = max(0.0, min(1.0, confidence))

@@ -1,5 +1,6 @@
-from typing import Any, Literal, TypedDict
+from typing import Any, TypedDict
 from src.core.models import CanonicalTicket, DocumentChunk, EscalationPacket
+from src.core.types import Disposition, GuardrailStatus, Provider, RoutingAction, Urgency
 
 
 class AgentState(TypedDict, total=False):
@@ -13,7 +14,7 @@ class AgentState(TypedDict, total=False):
     # Classification Stage
     inferred_intent: str
     intent_alternatives: dict[str, float]
-    urgency: Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+    urgency: Urgency
     confidence: float
     must_not_auto_respond: bool
 
@@ -22,7 +23,7 @@ class AgentState(TypedDict, total=False):
     top_retrieval_score: float
 
     # Routing Stage
-    routing_action: Literal["AUTO_RESPOND", "ESCALATE"]
+    routing_action: RoutingAction
     routing_reason: str
 
     # Generation Stage
@@ -30,7 +31,7 @@ class AgentState(TypedDict, total=False):
     citations: list[str]
 
     # Guardrails Stage
-    guardrail_status: Literal["PASSED", "TRIPPED"] | None
+    guardrail_status: GuardrailStatus | None
     guardrail_violations: list[str]
 
     # Escalation Stage
@@ -38,10 +39,8 @@ class AgentState(TypedDict, total=False):
 
     # Audit & Final Disposition
     final_response: str | None
-    final_disposition: Literal[
-        "AUTO_RESOLVED", "ESCALATED_ROUTER", "ESCALATED_GUARDRAIL", "ESCALATED_ERROR"
-    ]
-    provider_used: str
+    final_disposition: Disposition
+    provider_used: Provider
     started_at: float  # time.perf_counter() at pipeline entry
     is_degraded: bool
     error_details: str | None

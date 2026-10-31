@@ -1,19 +1,19 @@
 from datetime import datetime, timezone
-from typing import Literal
 from src.core.config import get_settings
 from src.core.models import DocumentChunk, EscalationPacket
+from src.core.types import EscalatedDisposition, Provider, Urgency
 
 
 def build_escalation_packet(
     ticket_id: str,
-    final_disposition: Literal["ESCALATED_ROUTER", "ESCALATED_GUARDRAIL", "ESCALATED_ERROR"],
+    final_disposition: EscalatedDisposition,
     routing_reason: str,
     inferred_intent: str,
     intent_confidence: float,
     intent_alternatives: dict[str, float] | None,
-    urgency: Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"],
+    urgency: Urgency,
     candidate_docs: list[DocumentChunk],
-    provider_used: str,
+    provider_used: Provider,
     guardrail_violations: list[str] | None = None,
 ) -> EscalationPacket:
     """

@@ -1,16 +1,17 @@
 from typing import Literal
+from src.core.types import Provider, RoutingAction, Urgency
 from src.core.config import get_settings
 
 
 def evaluate_route(
     confidence: float,
     top_retrieval_score: float,
-    urgency: str,
+    urgency: Urgency,
     must_not_auto_respond: bool,
     tau: float | None = None,
     sigma: float | None = None,
-    provider_used: str | None = None,
-) -> tuple[Literal["AUTO_RESPOND", "ESCALATE"], str]:
+    provider_used: Provider | None = None,
+) -> tuple[RoutingAction, str]:
     """
     Deterministic dual-gate routing pure function:
     AUTO_RESPOND if:
@@ -53,7 +54,7 @@ def evaluate_route(
         reasons.append("safe=True")
 
     if provider_used == "offline_mock":
-        action: Literal["AUTO_RESPOND", "ESCALATE"] = "ESCALATE"
+        action: RoutingAction = "ESCALATE"
         routing_reason = "OFFLINE_FALLBACK: all network providers unavailable"
         if failed_conditions:
             routing_reason += " (" + "; ".join(failed_conditions) + ")"
