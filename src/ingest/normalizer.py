@@ -14,6 +14,10 @@ from src.core.patterns import (  # noqa: F401  (re-exported for existing callers
     is_luhn_valid,
 )
 
+# created_at feeds the classification cache key (sha256 of the canonical ticket JSON), so a
+# missing/unparseable timestamp must map to a fixed value, never datetime.now().
+MISSING_TIMESTAMP = datetime(1970, 1, 1, tzinfo=timezone.utc)
+
 
 def redact_pii(text: str) -> str:
     """Scrub sensitive credentials and PII from text."""
@@ -64,7 +68,7 @@ def clean_text(text: str) -> str:
 
 
 def parse_timestamp(ts_value: Any) -> datetime:
-    """Parse various timestamp representations into UTC datetime."""
+    """Parse various timestamp representations into UTC datetime (MISSING_TIMESTAMP if absent/invalid)."""
     if isinstance(ts_value, datetime):
         if ts_value.tzinfo is None:
             return ts_value.replace(tzinfo=timezone.utc)
@@ -81,7 +85,7 @@ def parse_timestamp(ts_value: Any) -> datetime:
         except ValueError:
             pass
 
-    return datetime.now(timezone.utc)
+    return MISSING_TIMESTAMP
 
 
 def normalize_ticket(raw_payload: dict[str, Any]) -> CanonicalTicket:
