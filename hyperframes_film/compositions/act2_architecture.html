@@ -1,0 +1,178 @@
+<template>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+      width: 1920px;
+      height: 1016px;
+      padding: 50px 80px;
+      background: linear-gradient(135deg, #f8fafc 0%, #edf5fc 100%);
+      color: #0f172a;
+      font-family: 'Inter', sans-serif;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+    }
+    .scene-header { margin-bottom: 30px; }
+    .category-pill {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #1d4ed8;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      margin-bottom: 12px;
+    }
+    .scene-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 50px;
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -0.03em;
+      color: #0f172a;
+    }
+    .scene-subtitle {
+      font-size: 22px;
+      color: #475569;
+      margin-top: 8px;
+      max-width: 1350px;
+      line-height: 1.5;
+    }
+    .flow-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      margin: 16px 0 32px 0;
+    }
+    .flow-node {
+      background: #ffffff;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 22px 18px;
+      width: 230px;
+      text-align: center;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+    .flow-node.highlight-blue {
+      border-color: #2563eb;
+      background: #f0f7ff;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1);
+    }
+    .flow-node.highlight-green {
+      border-color: #059669;
+      background: #f0fdf4;
+      box-shadow: 0 4px 12px rgba(5, 150, 105, 0.1);
+    }
+    .flow-node-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: #0f172a;
+    }
+    .flow-node-sub {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: #475569;
+    }
+    .flow-arrow {
+      font-size: 32px;
+      color: #2563eb;
+      font-weight: 700;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+      width: 100%;
+    }
+    .card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 28px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+    .card-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 14px;
+    }
+  </style>
+
+  <div id="root" data-composition-id="act2" data-width="1920" data-height="1016" data-hold>
+    <div class="scene-header">
+      <span class="category-pill" data-layout-ignore>SYSTEM DESIGN THESIS</span>
+      <h1 class="scene-title">Decoupled Modular Monolith with Clean Architecture</h1>
+      <p class="scene-subtitle">Rejecting distributed microservices to eliminate cold starts, network latency, and transaction failures, achieving &lt;3s P95 auto-response latency.</p>
+    </div>
+
+    <div class="flow-container" id="act2-flow">
+      <div class="flow-node highlight-blue">
+        <div class="flow-node-title">1. Ingestion</div>
+        <div class="flow-node-sub" data-layout-ignore>Normalizer + Luhn</div>
+      </div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-node highlight-blue">
+        <div class="flow-node-title">2. Retrieval</div>
+        <div class="flow-node-sub" data-layout-ignore>87 Chunks + ChromaDB</div>
+      </div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-node highlight-blue">
+        <div class="flow-node-title">3. Classify</div>
+        <div class="flow-node-sub" data-layout-ignore>ECE &le; 0.15 + Veto</div>
+      </div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-node highlight-green">
+        <div class="flow-node-title">4. Dual Gates</div>
+        <div class="flow-node-sub" data-layout-ignore>c &ge; 0.75, s &ge; 0.65</div>
+      </div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-node highlight-blue">
+        <div class="flow-node-title">5. Cascade</div>
+        <div class="flow-node-sub" data-layout-ignore>Groq &rarr; Gemini &rarr; Mock</div>
+      </div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-node highlight-green">
+        <div class="flow-node-title">6. Audit WAL</div>
+        <div class="flow-node-sub" data-layout-ignore>Immutability Triggers</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title" style="color:#1d4ed8;">Clean Architecture Contracts</div>
+        <div style="font-family:'JetBrains Mono', monospace; font-size:15px; line-height:1.8; color:#334155;" data-layout-ignore>
+          &bull; <strong style="color:#0f172a">CanonicalTicket:</strong> Immutable normalized representation across all 4 inbound channels.<br/>
+          &bull; <strong style="color:#0f172a">DocumentChunk:</strong> 87 bounded semantic passages with citation anchors.<br/>
+          &bull; <strong style="color:#0f172a">EscalationPacket:</strong> Diagnostic bundle with failed gates and top-2 candidate KB links.<br/>
+          &bull; <strong style="color:#0f172a">LangGraph StateGraph:</strong> Deterministic state transitions with @safe_node fault containment.
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title" style="color:#059669;">Operational SLA Contracts</div>
+        <div style="font-family:'JetBrains Mono', monospace; font-size:15px; line-height:1.8; color:#334155;" data-layout-ignore>
+          &bull; <strong style="color:#0f172a">P95 Auto-Response Latency:</strong> &le; 3,000 ms (measured 2,150 ms in benchmark).<br/>
+          &bull; <strong style="color:#0f172a">P95 Escalation Latency:</strong> &le; 500 ms (early bypass without generation).<br/>
+          &bull; <strong style="color:#0f172a">Zero Process Crashes:</strong> Pure exception containment via @safe_node decorator.<br/>
+          &bull; <strong style="color:#0f172a">Embedded Sovereignty:</strong> Local ChromaDB DuckDB/Parquet store, zero external daemon.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo("#act2-flow", { opacity: 0, scale: 0.96 }, { opacity: 1, scale: 1.0, duration: 1.2, ease: "power3.out" }, 1.0);
+    window.__timelines["act2"] = tl;
+    tl.seek(0);
+  </script>
+</template>

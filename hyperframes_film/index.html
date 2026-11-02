@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>CloudServe Support Orchestrator — Architectural Presentation & In-App Demo</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --ground: #f8fafc;
+        --ink: #0f172a;
+        --ink-muted: #475569;
+        --blue-primary: #1d4ed8;
+        --blue-accent: #0284c7;
+        --border-color: #e2e8f0;
+        --font-display: 'Outfit', sans-serif;
+        --font-body: 'Inter', sans-serif;
+        --font-mono: 'JetBrains Mono', monospace;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html, body {
+        margin: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--ground);
+        color: var(--ink);
+        font-family: var(--font-body);
+        -webkit-font-smoothing: antialiased;
+      }
+      #root {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: linear-gradient(135deg, #f8fafc 0%, #eef5fc 100%);
+      }
+
+      /* Clean Executive Header Bar */
+      #executive-nav {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 1920px;
+        height: 64px;
+        background: rgba(255, 255, 255, 0.98);
+        border-bottom: 1px solid var(--border-color);
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 48px;
+        z-index: 1000;
+      }
+      .nav-brand {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      .brand-title {
+        font-family: var(--font-display);
+        font-size: 20px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        color: var(--ink);
+      }
+      .brand-badge {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        font-weight: 700;
+        background: #eff6ff;
+        color: var(--blue-primary);
+        border: 1px solid #bfdbfe;
+        padding: 3px 10px;
+        border-radius: 9999px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .nav-sections {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        font-family: var(--font-display);
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--ink-muted);
+      }
+      .nav-item {
+        transition: color 0.2s ease;
+      }
+      .nav-item.active {
+        color: var(--blue-primary);
+        font-weight: 700;
+      }
+      .nav-progress {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #1d4ed8, #0284c7);
+        width: 0%;
+      }
+
+      .clip {
+        position: absolute;
+        top: 64px;
+        left: 0;
+        width: 1920px;
+        height: 1016px;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="1080"
+      data-width="1920"
+      data-height="1080"
+    >
+      <!-- Sleek Executive Nav Bar -->
+      <div id="executive-nav">
+        <div class="nav-brand">
+          <span class="brand-title">CloudServe Support Orchestrator</span>
+          <span class="brand-badge">Modular Monolith</span>
+        </div>
+        <div class="nav-sections">
+          <span id="nav-s1" class="nav-item active">Discovery</span>
+          <span>&bull;</span>
+          <span id="nav-s2" class="nav-item">Architecture</span>
+          <span>&bull;</span>
+          <span id="nav-s3" class="nav-item">Ingestion &amp; PII</span>
+          <span>&bull;</span>
+          <span id="nav-s4" class="nav-item">Semantic Retrieval</span>
+          <span>&bull;</span>
+          <span id="nav-s5" class="nav-item">Dual Gates</span>
+          <span>&bull;</span>
+          <span id="nav-s6" class="nav-item">In-App Demo</span>
+          <span>&bull;</span>
+          <span id="nav-s7" class="nav-item">Evaluation &amp; Results</span>
+        </div>
+        <div id="nav-progress-bar" class="nav-progress"></div>
+      </div>
+
+      <!-- Section 1: Problem Discovery (0 - 150s) -->
+      <div
+        id="act1"
+        class="clip"
+        data-composition-id="act1"
+        data-composition-src="compositions/act1_crisis.html"
+        data-start="0"
+        data-duration="150"
+        data-track-index="1"
+        data-track-kind="graphics"
+        data-width="1920"
+        data-height="1016"
+      ></div>
+
+      <!-- Section 2: Architecture Thesis (150 - 300s) -->
+      <div
+        id="act2"
+        class="clip"
+        data-composition-id="act2"
+        data-composition-src="compositions/act2_architecture.html"
+        data-start="150"
+        data-duration="150"
+        data-track-index="1"
+        data-track-kind="graphics"
+        data-width="1920"
+        data-height="1016"
+      ></div>
+
+      <!-- Section 3: Ingestion & Scrubbing (300 - 450s) -->
+      <div
+        id="act3"
+        class="clip"
+        data-composition-id="act3"
+        data-composition-src="compositions/act3_ingestion.html"
+        data-start="300"
+        data-duration="150"
+        data-track-index="1"
+        data-track-kind="graphics"
+        data-width="1920"
+        data-height="1016"
+      ></div>
+
+      <!-- Section 4: Semantic Retrieval (450 - 600s) -->
+      <div
+        id="act4"
+        class="clip"
+        data-composition-id="act4"
+        data-composition-src="compositions/act4_retrieval.html"
+        data-start="450"
+        data-duration="150"
+        data-track-index="1"
+        data-track-kind="graphics"
+        data-width="1920"
+        data-height="1016"
+      ></div>
+
+      <!-- Section 5: Dual Gates & Cascade (600 - 750s) -->
+      <div
+        id="act5"
+        class="clip"
+        data-composition-id="act5"
+        data-composition-src="compositions/act5_routing.html"
+        data-start="600"
+        data-duration="150"
+        data-track-index="1"
+        data-track-kind="graphics"
+        data-width="1920"
+        data-height="1016"
+      ></div>
+
+      <!-- Section 6: Live In-App Product Demonstration (750 - 960s / 210s) -->
+      <div
+        id="act6"
+        class="clip"
+        data-composition-id="act6"
+        data-composition-src="compositions/act6_demo.html"
+        data-start="750"
+        data-duration="210"
+        data-track-index="1"
+        data-track-kind="graphics"
+        data-width="1920"
+        data-height="1016"
+      ></div>
+
+      <!-- Section 7: Benchmarks & Retrospective (960 - 1080s / 120s) -->
+      <div
+        id="act7"
+        class="clip"
+        data-composition-id="act7"
+        data-composition-src="compositions/act7_results.html"
+        data-start="960"
+        data-duration="120"
+        data-track-index="1"
+        data-track-kind="graphics"
+        data-width="1920"
+        data-height="1016"
+      ></div>
+    </div>
+
+    <script>
+      const tl = gsap.timeline({ paused: true });
+
+      // Progress Bar across 1080 seconds
+      tl.to("#nav-progress-bar", { width: "100%", duration: 1080, ease: "none" }, 0);
+
+      // Section Highlights
+      tl.set("#nav-s1", { className: "nav-item active" }, 0);
+      tl.set("#nav-s1", { className: "nav-item" }, 150);
+      tl.set("#nav-s2", { className: "nav-item active" }, 150);
+      tl.set("#nav-s2", { className: "nav-item" }, 300);
+      tl.set("#nav-s3", { className: "nav-item active" }, 300);
+      tl.set("#nav-s3", { className: "nav-item" }, 450);
+      tl.set("#nav-s4", { className: "nav-item active" }, 450);
+      tl.set("#nav-s4", { className: "nav-item" }, 600);
+      tl.set("#nav-s5", { className: "nav-item active" }, 600);
+      tl.set("#nav-s5", { className: "nav-item" }, 750);
+      tl.set("#nav-s6", { className: "nav-item active" }, 750);
+      tl.set("#nav-s6", { className: "nav-item" }, 960);
+      tl.set("#nav-s7", { className: "nav-item active" }, 960);
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

@@ -1,0 +1,182 @@
+<template>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+      width: 1920px;
+      height: 1016px;
+      padding: 50px 80px;
+      background: linear-gradient(135deg, #f8fafc 0%, #edf5fc 100%);
+      color: #0f172a;
+      font-family: 'Inter', sans-serif;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+    }
+    .scene-header { margin-bottom: 32px; }
+    .category-pill {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #1d4ed8;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      margin-bottom: 12px;
+    }
+    .scene-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 50px;
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -0.03em;
+      color: #0f172a;
+    }
+    .scene-subtitle {
+      font-size: 22px;
+      color: #475569;
+      margin-top: 10px;
+      max-width: 1350px;
+      line-height: 1.5;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 32px;
+      width: 100%;
+    }
+    .card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 32px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+      display: flex;
+      flex-direction: column;
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .card-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 6px;
+    }
+    .badge-blue { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+    .badge-green { background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; }
+    .badge-purple { background: #f5f3ff; color: #7c3aed; border: 1px solid #ddd6fe; }
+
+    .card-metric {
+      font-family: 'Outfit', sans-serif;
+      font-size: 64px;
+      font-weight: 800;
+      line-height: 1;
+      margin: 12px 0 14px 0;
+    }
+    .card-desc {
+      font-size: 17px;
+      line-height: 1.55;
+      color: #475569;
+    }
+    .detail-card {
+      margin-top: 28px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-left: 6px solid #1d4ed8;
+      border-radius: 12px;
+      padding: 24px 28px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+    .detail-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 20px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 8px;
+    }
+    .detail-text {
+      font-size: 16px;
+      color: #475569;
+      line-height: 1.6;
+    }
+    .code-chip {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 600;
+      background: #f1f5f9;
+      color: #1e293b;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid #cbd5e1;
+    }
+  </style>
+
+  <div id="root" data-composition-id="act4" data-width="1920" data-height="1016" data-hold>
+    <div class="scene-header">
+      <div class="category-pill" data-layout-ignore>Semantic Retrieval &amp; Bounded Chunking</div>
+      <h1 class="scene-title">Bounded Semantic Chunking &amp; ChromaDB Dense Retrieval</h1>
+      <p class="scene-subtitle">29 operational articles chunked to exactly 87 passages (within 70–90 bound) and indexed with all-MiniLM-L6-v2 embeddings, defeating vocabulary mismatch.</p>
+    </div>
+
+    <div class="grid-3">
+      <div class="card" id="act4-card1">
+        <div class="card-header">
+          <div class="card-title">Chunking Constraint</div>
+          <span class="badge badge-blue">TARGET: 70–90</span>
+        </div>
+        <div class="card-metric" style="color:#1d4ed8;">87 Chunks</div>
+        <div class="card-desc">Bounded strictly within the 70–90 target. Document-aware H2/H3 chunking preserves complete troubleshooting procedures without token fragmentation.</div>
+      </div>
+
+      <div class="card" id="act4-card2">
+        <div class="card-header">
+          <div class="card-title">Dense Embedding Store</div>
+          <span class="badge badge-green">LOCAL PERSISTENCE</span>
+        </div>
+        <div class="card-metric" style="color:#059669;">&lt; 45 ms</div>
+        <div class="card-desc">ChromaDB 0.3.21 embedded with local DuckDB/Parquet persistence. Cosine distance transformed to normalized similarity score s_ret &isin; [0.0, 1.0].</div>
+      </div>
+
+      <div class="card" id="act4-card3">
+        <div class="card-header">
+          <div class="card-title">Vocabulary Resolution</div>
+          <span class="badge badge-purple">COLLOQUIAL &rarr; FORMAL</span>
+        </div>
+        <div class="card-metric" style="color:#7c3aed;">0.89 Cos</div>
+        <div class="card-desc">Colloquial queries ("my container keeps dying") match formal docs ("Container Liveness Probes") with 0.89 similarity, bridging the front-line search divide.</div>
+      </div>
+    </div>
+
+    <div class="detail-card" id="act4-detail">
+      <div class="detail-title">Overcoming Pydantic v2 Incompatibility in ChromaDB 0.3.21</div>
+      <div class="detail-text">
+        To preserve local offline execution without external cloud dependencies, we established a global compatibility shim in <span class="code-chip">src/__init__.py</span>, aliasing <span class="code-chip">pydantic.BaseSettings = pydantic.v1.BaseSettings</span> and monkey-patching <span class="code-chip">Collection.__init__</span> to prevent private attribute erasure under Pydantic v2. Zero external daemons, instant cold starts.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo("#act4-card1", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 1.0, ease: "power3.out" }, 1.0);
+    tl.fromTo("#act4-card2", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 1.0, ease: "power3.out" }, 2.0);
+    tl.fromTo("#act4-card3", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 1.0, ease: "power3.out" }, 3.0);
+    tl.fromTo("#act4-detail", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 1.2, ease: "power2.out" }, 4.0);
+    window.__timelines["act4"] = tl;
+    tl.seek(0);
+  </script>
+</template>

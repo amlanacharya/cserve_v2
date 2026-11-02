@@ -9,6 +9,32 @@ from src.generation.prompts import (
 )
 
 DOC_CITATION_REGEX = re.compile(r"\[(DOC-[A-Z0-9\-]+)\]")
+RAW_DOC_ID_REGEX = re.compile(r"(?<!\[)(DOC-[A-Z0-9\-]+)(?!\])")
+
+
+def normalize_generated_text(text: str) -> str:
+    """Normalizes exotic unicode punctuation and guarantees [DOC-ID] bracket enclosure."""
+    if not text:
+        return ""
+    # Normalize exotic unicode spaces and hyphens
+    text = (
+        text.replace("\u202f", " ")
+        .replace("\u00a0", " ")
+        .replace("\u200b", "")
+        .replace("\u2011", "-")
+        .replace("\u2012", "-")
+        .replace("\u2013", "-")
+        .replace("\u2014", "-")
+        .replace("\u2018", "'")
+        .replace("\u2019", "'")
+        .replace("\u201c", '"')
+        .replace("\u201d", '"')
+    )
+    # Ensure any bare DOC-XYZ-123 is cleanly wrapped in [DOC-XYZ-123]
+    text = RAW_DOC_ID_REGEX.sub(r"[\1]", text)
+    # Clean up double brackets like [[DOC-ID]] if any
+    text = text.replace("[[", "[").replace("]]", "]")
+    return text
 
 
 def extract_citations(text: str) -> list[str]:
@@ -42,11 +68,11 @@ def generate_response(
         task_type="generation",
     )
 
-    citations = extract_citations(raw_response)
+    clean_response = normalize_generated_text(raw_response) if raw_response else None
+    citations = extract_citations(clean_response) if clean_response else []
 
     return {
-        "draft_response": raw_response if raw_response else None,
+        "draft_response": clean_response,
         "citations": citations,
         "provider_used": provider_used,
     }
-

@@ -1,0 +1,130 @@
+<template>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+      width: 1920px;
+      height: 1016px;
+      padding: 50px 80px;
+      background: linear-gradient(135deg, #f8fafc 0%, #edf5fc 100%);
+      color: #0f172a;
+      font-family: 'Inter', sans-serif;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+    }
+    .scene-header { margin-bottom: 30px; }
+    .category-pill {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #1d4ed8;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      margin-bottom: 12px;
+    }
+    .scene-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 50px;
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -0.03em;
+      color: #0f172a;
+    }
+    .scene-subtitle {
+      font-size: 22px;
+      color: #475569;
+      margin-top: 8px;
+      max-width: 1350px;
+      line-height: 1.5;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+      width: 100%;
+    }
+    .card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 30px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+    .card-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+    .code-box {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      line-height: 1.7;
+      color: #f8fafc;
+      background: #0f172a;
+      padding: 20px;
+      border-radius: 10px;
+      border: 1px solid #1e293b;
+    }
+    .term-cyan { color: #38bdf8; }
+    .term-green { color: #34d399; }
+    .term-yellow { color: #fbbf24; }
+    .term-gray { color: #94a3b8; }
+  </style>
+
+  <div id="root" data-composition-id="act3" data-width="1920" data-height="1016" data-hold>
+    <div class="scene-header">
+      <span class="category-pill" data-layout-ignore>INGESTION &amp; PII DEFENSE</span>
+      <h1 class="scene-title">Multi-Channel Normalization &amp; Cryptographic PII Scrubbing</h1>
+      <p class="scene-subtitle">Unifying Email, Chat, Forum, and Docs Comments while enforcing Luhn-verified financial redaction and API key scrubbing before state storage.</p>
+    </div>
+
+    <div class="grid-2">
+      <div class="card" id="act3-left">
+        <div class="card-title" style="color:#1d4ed8;">Channel Transformation Pipeline</div>
+        <div class="code-box" data-layout-ignore>
+          <span class="term-gray">// Raw Inbound Chat / Forum / Email Payload</span><br/>
+          {<br/>
+          &nbsp;&nbsp;<span class="term-cyan">"source"</span>: <span class="term-yellow">"chat"</span>,<br/>
+          &nbsp;&nbsp;<span class="term-cyan">"body"</span>: <span class="term-green">"My card 4532015012345671 and key cs_live_9a8b7c6d5e4f3a2b1c0d9e8f failed!"</span><br/>
+          }<br/><br/>
+          <span class="term-gray">// Normalized CanonicalTicket (Scrubbed)</span><br/>
+          {<br/>
+          &nbsp;&nbsp;<span class="term-cyan">"channel"</span>: <span class="term-yellow">"chat"</span>,<br/>
+          &nbsp;&nbsp;<span class="term-cyan">"body"</span>: <span class="term-green">"My card [REDACTED_CREDIT_CARD] and key [REDACTED_API_KEY] failed!"</span>,<br/>
+          &nbsp;&nbsp;<span class="term-cyan">"pii_detected"</span>: <span class="term-yellow">true</span><br/>
+          }
+        </div>
+      </div>
+
+      <div class="card" id="act3-right">
+        <div class="card-title" style="color:#059669;">Algorithmic Luhn Checksum Protection</div>
+        <div style="font-size:18px; line-height:1.6; color:#475569;">
+          <p style="margin-bottom:14px;">Naive 16-digit regex matches create massive false positives on UUIDs, ticket numbers, and timestamps. CloudServe enforces algorithmic validation:</p>
+          <div class="code-box" style="margin-bottom:16px;" data-layout-ignore>
+            def verify_luhn(candidate: str) -&gt; bool:<br/>
+            &nbsp;&nbsp;&nbsp;&nbsp;digits = [int(c) for c in candidate if c.isdigit()]<br/>
+            &nbsp;&nbsp;&nbsp;&nbsp;checksum = sum(digits[-1::-2]) + sum([sum(divmod(2 * d, 10)) for d in digits[-2::-2]])<br/>
+            &nbsp;&nbsp;&nbsp;&nbsp;return (checksum % 10 == 0)
+          </div>
+          <p>&bull; <strong style="color:#0f172a">Zero Leaked Keys:</strong> Anchored `cs_live_[0-9a-zA-Z]{24}` regex scrubs production secrets.<br/>
+          &bull; <strong style="color:#0f172a">Compliance:</strong> 100% compliance with GDPR, SOC-2, and PCI-DSS mandates.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo("#act3-left", { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 1.0, ease: "power3.out" }, 1.0);
+    tl.fromTo("#act3-right", { opacity: 0, x: 30 }, { opacity: 1, x: 0, duration: 1.0, ease: "power3.out" }, 2.0);
+    window.__timelines["act3"] = tl;
+    tl.seek(0);
+  </script>
+</template>

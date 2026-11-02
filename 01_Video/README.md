@@ -1,73 +1,108 @@
-# Video Presentation Runbook & Production Guide
+# HyperFrames 18-Minute Architectural Film & In-App Demo Runbook
 
-**Student Name:** Amlan Acharya  
-**Project:** CloudServe Support Orchestrator Capstone  
-**Target Duration:** 18–20 Minutes  
-**Final Output File:** `01_Video/AmlanAcharya_Capstone_Presentation.mp4`  
+**Production Title:** CloudServe Support Orchestrator — Architectural Film & Live Demo  
+**Director & Lead Engineer:** Amlan Acharya  
+**Design Palette:** Executive White & Royal Blue Enterprise Theme  
+**Framework:** [HeyGen HyperFrames](https://github.com/heygen-com/hyperframes) (`npx hyperframes`)  
+**Canvas Resolution:** 1920 &times; 1080 (1080p Full HD) &bull; 30 fps  
+**Film Duration:** Exactly 18 Minutes (1,080 Seconds / 32,400 Frames)  
+**Total Video with Webcam (Clipchamp):** 20 Minutes (2:00 Intro + 18:00 Core Presentation + 2:00 Outro)  
 
 ---
 
-## 1. Structure & Clipchamp Splicing Plan
+## 1. Video Deliverables Summary
 
-The video presentation is structured into three continuous segments:
+This directory contains two complementary video artifacts designed for immediate review and Clipchamp splicing:
 
-| Segment | Video Timestamp | Visual Content | Audio / Speaker | Production Notes |
+1. **`01_Video/in_app_demo_live.mp4`** (1.06 MB, 1080p Full HD):
+   - **Direct Live Screen Recording** of the running FastAPI web application (`http://127.0.0.1:8000/dashboard`).
+   - Driven programmatically via Puppeteer and encoded with FFmpeg.
+   - Shows interactive multi-channel ticket submission, live animated 7-stage pipeline visualizer, orthogonal dual-gate meters, grounded `[DOC-ID]` citation badges, live SQLite audit stream, and tamper-test trigger rejection (`decision_log_no_update`).
+
+2. **`01_Video/hyperframes_presentation_18min.mp4`** (Master 18:00 Film):
+   - **Comprehensive Executive Film** rendered directly via HeyGen HyperFrames.
+   - Built with an executive White & Slate ground (`#f8fafc` / `#ffffff`), deep navy typography (`#0f172a`), and royal blue accenting (`#1d4ed8` / `#2563eb`), removing all informal rehearsal kickers.
+   - Seamlessly integrates the full architectural thesis, multi-channel ingestion, bounded chunking, dual gates, live in-app control plane simulation, and empirical benchmark evaluation.
+
+---
+
+## 2. Directorial Structure & Pacing Map
+
+The 18-minute core film is structured into 7 distinct sections, adhering to the HeyGen HyperFrames sub-composition contract (`index.html` + `compositions/act*.html`):
+
+| Section | Identifier | Time Offset | Duration | Core Visuals & Demonstration Content |
 |---|---|---|---|---|
-| **Part 1: Executive Introduction** | 0:00 – 2:00 | Talking-head webcam video (Amlan Acharya) | Executive hook, baseline crisis (FCR 42%), core thesis | Recorded via webcam; placed as the opening clip in Clipchamp |
-| **Part 2: HyperFrames Slides & Live Demo** | 2:00 – 18:00 | Screen recording of `presentation/index.html` + Terminal Live Demo | Deep-dive slide walkthrough and live terminal demo ($\ge 7$ min) | Screen-recorded at 1080p 60fps; main timeline clip |
-| **Part 3: Reflection & Conclusion** | 18:00 – 20:00 | Talking-head webcam video (Amlan Acharya) | Architectural retrospective, key learnings, closing | Recorded via webcam; placed as the closing clip in Clipchamp |
+| **Section 1** | `act1_crisis.html` | 0:00 – 2:30 | 150s | **Problem Discovery & Vocabulary Mismatch:** The 42.0% FCR crisis vs 65.0% mandate; 500-ticket EDA; colloquial query divergence. |
+| **Section 2** | `act2_architecture.html` | 2:30 – 5:00 | 150s | **System Design Thesis:** Clean Architecture domain model; why microservices fail; LangGraph StateGraph & `@safe_node` defensive isolation. |
+| **Section 3** | `act3_ingestion.html` | 5:00 – 7:30 | 150s | **Ingestion & PII Defense:** Multi-channel normalizer (`email`, `chat`, `forum`, `docs_comment`); Luhn algorithm checksum validation; API key regex redaction. |
+| **Section 4** | `act4_retrieval.html` | 7:30 – 10:00 | 150s | **Semantic Retrieval & Chunking:** Bounded H2/H3 chunking (87 chunks across 29 articles); ChromaDB 0.3.21 dense embeddings; Pydantic v2 backward compatibility shim. |
+| **Section 5** | `act5_routing.html` | 10:00 – 12:30 | 150s | **Orthogonal Dual Gates & Cascade:** Independent dual gates ($c \ge 0.75, s_{\text{ret}} \ge 0.65$); XML prompt sandboxing; 3-tier cascade (Groq &rarr; Gemini &rarr; Offline Mock). |
+| **Section 6** | `act6_demo.html` | 12:30 – 16:00 | 210s | **Live In-App Control Plane:** Full interactive web dashboard inside browser frame demonstrating Scenario 1 (Auto-Response), Scenario 2 (Safety Veto Outage), Scenario 3 (PII/Luhn Redaction), and Scenario 4 (SQLite Immutability Trigger Test). |
+| **Section 7** | `act7_results.html` | 16:00 – 18:00 | 120s | **Empirical Benchmarks & Retrospective:** 68.3% FCR (+26.3% uplift), 0.074 10-bin ECE curve, P95 latency (2,150ms), and 12/12 acceptance criteria validation. |
 
 ---
 
-## 2. Recording Instructions
+## 3. Running the Live Application & HyperFrames Studio
 
-### 2.1 Presenter Deck (`presentation/index.html`)
-1. Open `presentation/index.html` in Chrome, Edge, or Firefox.
-2. Press `F11` to enter full-screen mode.
-3. Use `Right Arrow` / `Space` to advance slides and `Left Arrow` to navigate backward.
-4. Press `N` to toggle the presenter notes bar if needed.
-
-### 2.2 Live Software Demonstration (Minutes 8:00 – 15:30)
-Run the commands sequentially in PowerShell or Windows Terminal:
+### 3.1 Launching the Live FastAPI Web Dashboard
+The web application provides a full graphical control plane with one-click test scenarios and live SQLite inspection:
 
 ```powershell
-# 1. Clean test suite run verifying all 35 tests
-.\.venv\Scripts\pytest tests/ -v
-
-# 2. Start the FastAPI orchestrator in the background or split pane
-.\.venv\Scripts\uvicorn src.api:app --host 120.0.0.1 --port 8000
-
-# 3. Process an auto-respond ticket (API key rotation query)
-curl.exe -X POST http://127.0.0.1:8000/tickets/process `
-  -H "Content-Type: application/json" `
-  -d '{\"id\": \"DEMO-001\", \"channel\": \"chat\", \"customer_id\": \"cust_77\", \"subject\": \"How do I rotate API key?\", \"body\": \"I need to rotate my production API key without downtime.\", \"metadata\": {}}'
-
-# 4. Process an outage ticket triggering safety veto and escalation
-curl.exe -X POST http://127.0.0.1:8000/tickets/process `
-  -H "Content-Type: application/json" `
-  -d '{\"id\": \"DEMO-002\", \"channel\": \"email\", \"customer_id\": \"cust_99\", \"subject\": \"Production down database corrupt\", \"body\": \"Our entire database is corrupted and the service is completely down!\", \"metadata\": {}}'
-
-# 5. Inspect the immutable SQLite decision log
-python -c "import sqlite3; conn = sqlite3.connect('data/decision_log.db'); print(conn.execute('SELECT ticket_id, final_status, routing_reason FROM decision_log ORDER BY rowid DESC LIMIT 2').fetchall())"
-
-# 6. Execute batch evaluation harness with progress bar
-.\.venv\Scripts\python -m evaluation.harness --input 05_Datasets/development_tickets.json --output evaluation/results/evaluation_report.json --delay 1.5
+# Start the server (if not already running)
+.\.venv\Scripts\uvicorn src.api:app --host 127.0.0.1 --port 8000
 ```
+Open your browser to: **`http://127.0.0.1:8000/dashboard`** (or `http://127.0.0.1:8000/`).
+
+### 3.2 HyperFrames Live Studio Preview
+To inspect or interact with the seekable 18-minute presentation timeline:
+
+```bash
+cd hyperframes_film
+npm run dev
+# or: npx hyperframes preview
+```
+
+### 3.3 Quality Gate Validation
+```bash
+cd hyperframes_film
+npm run check
+```
+*(Verified: Passed with 0 errors across all 599 frame crafts, 0 layout shifts, 0 runtime exceptions).*
+
+### 3.4 Re-recording Live In-App Video
+To re-run the automated headless browser demo recording:
+
+```bash
+node scripts/record_in_app_demo.js
+```
+This generates `01_Video/in_app_demo_live.mp4` directly using Puppeteer and FFmpeg.
 
 ---
 
-## 3. Microsoft Clipchamp Assembly Workflow
+## 4. Microsoft Clipchamp Assembly Workflow
 
-1. Open **Microsoft Clipchamp** (pre-installed in Windows 11 or available via web/app).
-2. Click **Create a new video** (16:9 widescreen, 1080p).
-3. Import the following media files:
-   - `webcam_intro.mp4` (Recorded talking-head webcam video, 0:00–2:00)
-   - `screen_deck_and_demo.mp4` (Screen recording of slides & live terminal demo, 2:00–18:00)
-   - `webcam_outro.mp4` (Recorded talking-head webcam video, 18:00–20:00)
-4. Drag clips onto the timeline in sequential order:
-   `[webcam_intro (2 min)]` &rarr; `[screen_deck_and_demo (16 min)]` &rarr; `[webcam_outro (2 min)]`.
-5. Add a subtle 0.5-second cross-fade or clean cut transition between clips.
-6. Verify audio levels are consistent across all three clips.
-7. Click **Export** &rarr; Select **1080p (HD)**.
-8. Save the exported file as `01_Video/AmlanAcharya_Capstone_Presentation.mp4`.
+To assemble the complete 20-minute capstone submission with your webcam talking-head clips:
 
+1. **Webcam Intro Clip (0:00 – 2:00)**:
+   - Record yourself on webcam (Clipchamp or Windows Camera).
+   - Script guide: *"Hi, I'm Amlan Acharya, and this is the CloudServe Support Orchestrator Capstone..."*
+   - Highlight the 42% baseline FCR crisis, SLA penalties, and executive mandate for 65% FCR.
+2. **Main Film & In-App Demo Clip (2:00 – 18:00)**:
+   - Import `01_Video/hyperframes_presentation_18min.mp4` (or splice in `01_Video/in_app_demo_live.mp4` for Act 6).
+   - Follow the minute-by-minute speaking cues in [hyperframes_film/DIRECTOR_SCRIPT.md](file:///c:/Users/amlan/Downloads/cloudserve/FDE_Capstone_Complete/Capstone_Pack/hyperframes_film/DIRECTOR_SCRIPT.md).
+3. **Webcam Outro Clip (18:00 – 20:00)**:
+   - Record yourself reflecting on key lessons: why confidence calibration (ECE 0.074) trumps raw accuracy, how orthogonal dual gates eliminate hallucinated answers, and the value of tamper-evident audit logs.
+4. **Assembly & Export in Clipchamp**:
+   - Open **Microsoft Clipchamp** &rarr; New Project (16:9, 1080p).
+   - Arrange: `[Webcam Intro (2m)]` &rarr; `[HyperFrames Film & Demo (18m)]` &rarr; `[Webcam Outro (2m)]`.
+   - Add a subtle 0.5s cross-dissolve transition between clips.
+   - Click **Export &rarr; 1080p (HD)** and save to `01_Video/AmlanAcharya_Capstone_Presentation.mp4`.
+
+---
+
+## 5. Documentation References
+
+- **Director's Production Specification:** [hyperframes_film/SPEC.md](file:///c:/Users/amlan/Downloads/cloudserve/FDE_Capstone_Complete/Capstone_Pack/hyperframes_film/SPEC.md)
+- **18-Minute Second-by-Second Narration Script:** [hyperframes_film/DIRECTOR_SCRIPT.md](file:///c:/Users/amlan/Downloads/cloudserve/FDE_Capstone_Complete/Capstone_Pack/hyperframes_film/DIRECTOR_SCRIPT.md)
+- **Master Composition:** [hyperframes_film/index.html](file:///c:/Users/amlan/Downloads/cloudserve/FDE_Capstone_Complete/Capstone_Pack/hyperframes_film/index.html)
+- **Sub-Compositions:** [hyperframes_film/compositions/](file:///c:/Users/amlan/Downloads/cloudserve/FDE_Capstone_Complete/Capstone_Pack/hyperframes_film/compositions/)

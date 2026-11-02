@@ -1,0 +1,152 @@
+<template>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+      width: 1920px;
+      height: 1016px;
+      padding: 50px 80px;
+      background: linear-gradient(135deg, #f8fafc 0%, #edf5fc 100%);
+      color: #0f172a;
+      font-family: 'Inter', sans-serif;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+    }
+    .scene-header { margin-bottom: 36px; }
+    .category-pill {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #1d4ed8;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      margin-bottom: 12px;
+    }
+    .scene-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 50px;
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -0.03em;
+      color: #0f172a;
+    }
+    .scene-subtitle {
+      font-size: 22px;
+      color: #475569;
+      margin-top: 10px;
+      max-width: 1350px;
+      line-height: 1.5;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 32px;
+      width: 100%;
+    }
+    .card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 32px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+      display: flex;
+      flex-direction: column;
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .card-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 24px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 6px;
+    }
+    .badge-red { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+    .badge-blue { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+    .badge-amber { background: #fffbeb; color: #d97706; border: 1px solid #fde68a; }
+
+    .card-metric {
+      font-family: 'Outfit', sans-serif;
+      font-size: 72px;
+      font-weight: 800;
+      line-height: 1;
+      margin: 16px 0 12px 0;
+    }
+    .card-desc {
+      font-size: 18px;
+      line-height: 1.5;
+      color: #475569;
+    }
+  </style>
+
+  <div id="root" data-composition-id="act1" data-width="1920" data-height="1016" data-hold>
+    <div class="scene-header">
+      <span class="category-pill" data-layout-ignore>PROBLEM DISCOVERY &amp; VOCABULARY MISMATCH</span>
+      <h1 class="scene-title">The Support Crisis &amp; Empirical Evidence Settlement</h1>
+      <p class="scene-subtitle">Exploratory Data Analysis across 500 production development tickets reveals that 73.2% of issues had verified answers, but keyword search failed on lexical mismatch.</p>
+    </div>
+
+    <div class="grid-3">
+      <div class="card" id="act1-card1">
+        <div class="card-header">
+          <span class="card-title">First-Contact Resolution</span>
+          <span class="badge badge-red" data-layout-ignore>CRISIS METRIC</span>
+        </div>
+        <div class="card-metric" style="color:#dc2626;">42.0%</div>
+        <div class="card-desc">Depressed against the executive 65.0% mandate. Average customer resolution latency stood at 18.4 hours across 500 analyzed tickets.</div>
+      </div>
+
+      <div class="card" id="act1-card2">
+        <div class="card-header">
+          <span class="card-title">Documentation Coverage</span>
+          <span class="badge badge-blue" data-layout-ignore>EMPIRICAL PROOF</span>
+        </div>
+        <div class="card-metric" style="color:#1d4ed8;">73.2%</div>
+        <div class="card-desc">366 of 500 tickets had comprehensive verified answers in CloudServe's 29 articles. The root cause was vocabulary mismatch, not missing documentation.</div>
+      </div>
+
+      <div class="card" id="act1-card3">
+        <div class="card-header">
+          <span class="card-title">Preventable Escalations</span>
+          <span class="badge badge-amber" data-layout-ignore>BOTTLENECK</span>
+        </div>
+        <div class="card-metric" style="color:#d97706;">51.4%</div>
+        <div class="card-desc">Senior Tier 2 engineers burned 40% of sprint capacity repeating basic discovery questions because escalated tickets arrived stripped of diagnostic context.</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:28px;" id="act1-detail">
+      <div class="card-title" style="margin-bottom:12px; color:#0f172a;">Settling The Core Disagreements With Data</div>
+      <div style="font-size:18px; color:#475569; line-height:1.7;">
+        &bull; <strong style="color:#0f172a">Documentation Writer vs Frontline Agent:</strong> Ines claimed documentation was exhaustive; Sofia claimed answers were missing. Data proved 73.2% coverage, settling the conflict: dense semantic search was required, not rewriting wikis.<br/>
+        &bull; <strong style="color:#0f172a">Tier 2 Engineering Bottleneck:</strong> Daniel reported that routine password and API key tickets starved infrastructure sprints. Enriched escalation packets with candidate documentation links solve the root cause.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo("#act1-card1", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 1.0, ease: "power3.out" }, 1.0);
+    tl.fromTo("#act1-card2", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 1.0, ease: "power3.out" }, 2.0);
+    tl.fromTo("#act1-card3", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 1.0, ease: "power3.out" }, 3.0);
+    tl.fromTo("#act1-detail", { opacity: 0 }, { opacity: 1, duration: 1.2, ease: "power2.out" }, 4.0);
+    window.__timelines["act1"] = tl;
+    tl.seek(0);
+  </script>
+</template>

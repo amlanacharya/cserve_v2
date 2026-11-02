@@ -176,13 +176,14 @@ def query_documents(
         # Index lazily if collection is empty
         index_documentation(persist_dir=persist_dir)
 
-    results = collection.query(query_texts=[query_text], n_results=top_k)
+    fetch_k = max(10, top_k)
+    results = collection.query(query_texts=[query_text], n_results=fetch_k)
 
     retrieved: list[DocumentChunk] = []
     if not results or not results["ids"] or not results["ids"][0]:
         return retrieved
 
-    ids = results["ids"][0]
+    ids = results["ids"][0][:top_k]
     docs = results["documents"][0] if results["documents"] else [""] * len(ids)
     metas = results["metadatas"][0] if results["metadatas"] else [{}] * len(ids)
     distances = results["distances"][0] if results["distances"] else [1.0] * len(ids)

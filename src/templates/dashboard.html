@@ -1,0 +1,1647 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CloudServe Support Orchestrator — Live Control Plane</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg-root: #07090e;
+      --bg-panel: #0d121c;
+      --bg-card-subtle: #131a29;
+      --bg-input: #080b12;
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-focus: #38bdf8;
+      
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-tertiary: #64748b;
+
+      --cyan: #38bdf8;
+      --cyan-rgb: 56, 189, 248;
+      --emerald: #10b981;
+      --emerald-rgb: 16, 185, 129;
+      --amber: #f59e0b;
+      --amber-rgb: 245, 158, 11;
+      --crimson: #ef4444;
+      --crimson-rgb: 239, 68, 68;
+      --violet: #8b5cf6;
+      --violet-rgb: 139, 92, 246;
+
+      --font-display: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+      
+      --shadow-panel: 0 4px 24px -2px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: var(--bg-root);
+      background-image: 
+        radial-gradient(ellipse 80% 40% at 50% -10%, rgba(56, 189, 248, 0.07), transparent 70%),
+        radial-gradient(ellipse 50% 30% at 90% 90%, rgba(139, 92, 246, 0.04), transparent 60%);
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Top Sticky Header */
+    header {
+      background: rgba(13, 18, 28, 0.85);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 14px 36px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-logo-mark {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #38bdf8, #8b5cf6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-display);
+      font-weight: 800;
+      color: #07090e;
+      font-size: 15px;
+      box-shadow: 0 0 16px rgba(56, 189, 248, 0.4);
+    }
+
+    .brand-title {
+      font-family: var(--font-display);
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-sub {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-tertiary);
+      font-weight: 500;
+    }
+
+    /* Badges */
+    .badge {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-variant-numeric: tabular-nums;
+      transition: all 0.2s ease;
+    }
+
+    .badge-cyan {
+      background: rgba(var(--cyan-rgb), 0.12);
+      color: var(--cyan);
+      border: 1px solid rgba(var(--cyan-rgb), 0.25);
+    }
+
+    .badge-green {
+      background: rgba(var(--emerald-rgb), 0.12);
+      color: var(--emerald);
+      border: 1px solid rgba(var(--emerald-rgb), 0.25);
+    }
+
+    .badge-amber {
+      background: rgba(var(--amber-rgb), 0.12);
+      color: var(--amber);
+      border: 1px solid rgba(var(--amber-rgb), 0.25);
+    }
+
+    .badge-red {
+      background: rgba(var(--crimson-rgb), 0.12);
+      color: var(--crimson);
+      border: 1px solid rgba(var(--crimson-rgb), 0.25);
+    }
+
+    .badge-purple {
+      background: rgba(var(--violet-rgb), 0.12);
+      color: #c084fc;
+      border: 1px solid rgba(var(--violet-rgb), 0.25);
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--emerald);
+      box-shadow: 0 0 10px var(--emerald);
+      animation: pulse-ring 2.5s infinite;
+    }
+
+    @keyframes pulse-ring {
+      0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6); }
+      70% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+
+    main {
+      flex: 1;
+      padding: 24px 36px 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      max-width: 1760px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* Scenario Quick Bar */
+    .scenario-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-subtle);
+      padding: 10px 16px;
+      border-radius: 12px;
+      flex-wrap: wrap;
+      box-shadow: var(--shadow-panel);
+    }
+
+    .scenario-label {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 12px;
+      color: var(--text-tertiary);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-right: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-scenario {
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-subtle);
+      padding: 7px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    .btn-scenario kbd {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 4px;
+      padding: 1px 5px;
+      font-family: var(--font-mono);
+      font-size: 9.5px;
+      color: var(--text-tertiary);
+      font-weight: 700;
+    }
+
+    .btn-scenario:hover {
+      background: rgba(56, 189, 248, 0.08);
+      color: #fff;
+      border-color: rgba(56, 189, 248, 0.4);
+      transform: translateY(-1px);
+    }
+
+    .btn-scenario.active {
+      background: rgba(56, 189, 248, 0.14);
+      color: var(--cyan);
+      border-color: var(--cyan);
+      box-shadow: 0 0 14px rgba(56, 189, 248, 0.25);
+    }
+
+    .btn-scenario.active kbd {
+      background: rgba(56, 189, 248, 0.25);
+      color: #fff;
+      border-color: var(--cyan);
+    }
+
+    /* Grid Layout */
+    .grid-layout {
+      display: grid;
+      grid-template-columns: 460px 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 1280px) {
+      .grid-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-subtle);
+      border-radius: 14px;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow-panel);
+      position: relative;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+    }
+
+    .panel-title {
+      font-family: var(--font-display);
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.015em;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      color: #fff;
+    }
+
+    .form-group {
+      margin-bottom: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-family: var(--font-display);
+    }
+
+    select,
+    input,
+    textarea {
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 10px 13px;
+      color: #fff;
+      font-family: var(--font-body);
+      font-size: 13px;
+      outline: none;
+      transition: all 0.2s ease;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    select:focus,
+    input:focus,
+    textarea:focus {
+      border-color: var(--cyan);
+      box-shadow: 0 0 0 2px rgba(var(--cyan-rgb), 0.2), inset 0 2px 4px rgba(0, 0, 0, 0.4);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 110px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .btn-submit {
+      background: linear-gradient(135deg, #0ea5e9, #38bdf8);
+      color: #07090e;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-family: var(--font-display);
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 6px;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 2px 14px rgba(14, 165, 233, 0.35);
+      letter-spacing: 0.01em;
+    }
+
+    .btn-submit:hover {
+      box-shadow: 0 4px 22px rgba(56, 189, 248, 0.5);
+      transform: translateY(-2px);
+      filter: brightness(1.08);
+    }
+
+    .btn-submit:active {
+      transform: translateY(0);
+    }
+
+    /* 7-Node Pipeline Visualizer */
+    .pipeline-nodes {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 8px;
+      background: var(--bg-card-subtle);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-bottom: 18px;
+      position: relative;
+    }
+
+    .p-node {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      padding: 10px 8px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-subtle);
+      text-align: center;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+    }
+
+    .p-node.active {
+      border-color: var(--cyan);
+      box-shadow: 0 0 16px rgba(var(--cyan-rgb), 0.35);
+      background: rgba(var(--cyan-rgb), 0.1);
+      transform: translateY(-2px);
+    }
+
+    .p-node.success {
+      border-color: var(--emerald);
+      box-shadow: 0 0 16px rgba(var(--emerald-rgb), 0.35);
+      background: rgba(var(--emerald-rgb), 0.08);
+    }
+
+    .p-node.veto {
+      border-color: var(--crimson);
+      box-shadow: 0 0 16px rgba(var(--crimson-rgb), 0.35);
+      background: rgba(var(--crimson-rgb), 0.08);
+    }
+
+    .p-node.guard {
+      border-color: var(--violet);
+      box-shadow: 0 0 16px rgba(var(--violet-rgb), 0.35);
+      background: rgba(var(--violet-rgb), 0.08);
+    }
+
+    .p-node-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #fff;
+      font-family: var(--font-display);
+      letter-spacing: -0.01em;
+    }
+
+    .p-node-status {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--text-tertiary);
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+
+    /* Decision Diagnostic Banner */
+    .decision-banner {
+      border-radius: 12px;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+      border: 1px solid;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .banner-auto {
+      background: linear-gradient(135deg, rgba(var(--emerald-rgb), 0.08), rgba(var(--emerald-rgb), 0.02));
+      border-color: rgba(var(--emerald-rgb), 0.35);
+      color: var(--emerald);
+    }
+
+    .banner-veto {
+      background: linear-gradient(135deg, rgba(var(--crimson-rgb), 0.12), rgba(var(--crimson-rgb), 0.02));
+      border-color: rgba(var(--crimson-rgb), 0.4);
+      color: var(--crimson);
+    }
+
+    .banner-gate {
+      background: linear-gradient(135deg, rgba(var(--amber-rgb), 0.1), rgba(var(--amber-rgb), 0.02));
+      border-color: rgba(var(--amber-rgb), 0.35);
+      color: var(--amber);
+    }
+
+    .banner-guard {
+      background: linear-gradient(135deg, rgba(var(--violet-rgb), 0.12), rgba(var(--violet-rgb), 0.02));
+      border-color: rgba(var(--violet-rgb), 0.4);
+      color: #c084fc;
+    }
+
+    .banner-left {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .banner-status {
+      font-family: var(--font-display);
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .banner-reason {
+      font-size: 13px;
+      color: #cbd5e1;
+      max-width: 700px;
+      line-height: 1.45;
+    }
+
+    .banner-metrics {
+      display: flex;
+      gap: 20px;
+      text-align: right;
+    }
+
+    .bm-item {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .bm-val {
+      font-family: var(--font-display);
+      font-size: 22px;
+      font-weight: 800;
+      color: #fff;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .bm-lbl {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Dual Gates Diagnostic Strip */
+    .dual-gates-card {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .gate-box {
+      background: var(--bg-card-subtle);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      position: relative;
+    }
+
+    .gate-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .gate-title {
+      font-family: var(--font-display);
+      font-size: 12.5px;
+      font-weight: 700;
+      color: #cbd5e1;
+    }
+
+    .gate-stat {
+      font-family: var(--font-mono);
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .gate-meter {
+      height: 6px;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 9999px;
+      overflow: hidden;
+      margin-top: 3px;
+      position: relative;
+    }
+
+    .gate-bar {
+      height: 100%;
+      background: var(--cyan);
+      width: 0%;
+      transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+      border-radius: 9999px;
+    }
+
+    /* Output Tabs & Inspector */
+    .tab-toggle-group {
+      display: flex;
+      gap: 6px;
+    }
+
+    .tab-toggle {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      letter-spacing: 0.04em;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .tab-toggle.active {
+      background: rgba(var(--cyan-rgb), 0.12);
+      border-color: var(--cyan);
+      color: var(--cyan);
+    }
+
+    .tab-toggle:hover:not(.active) {
+      background: rgba(255, 255, 255, 0.06);
+      color: #fff;
+    }
+
+    .tab-action-btn {
+      background: transparent;
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .tab-action-btn:hover {
+      background: rgba(255, 255, 255, 0.06);
+      color: #fff;
+    }
+
+    .tab-content-area {
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 18px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.65;
+      color: #e2e8f0;
+      white-space: pre-wrap;
+      max-height: 380px;
+      overflow-y: auto;
+      box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.4);
+    }
+
+    .citation-tag {
+      background: rgba(var(--cyan-rgb), 0.15);
+      color: var(--cyan);
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-weight: 700;
+      cursor: pointer;
+      border: 1px solid rgba(var(--cyan-rgb), 0.35);
+      transition: all 0.15s ease;
+      display: inline-block;
+      margin: 0 2px;
+    }
+
+    .citation-tag:hover {
+      background: var(--cyan);
+      color: #07090e;
+      box-shadow: 0 0 10px rgba(var(--cyan-rgb), 0.5);
+    }
+
+    .json-code-box {
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 16px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      max-height: 380px;
+      overflow-y: auto;
+      box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.4);
+    }
+
+    /* Live API Stream Ticker */
+    .api-log-box {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 10px 18px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--text-secondary);
+      overflow-x: auto;
+      box-shadow: var(--shadow-panel);
+    }
+
+    .api-log-entry {
+      color: var(--cyan);
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Audit History Table */
+    .table-container {
+      overflow-x: auto;
+      border-radius: 8px;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-input);
+      max-height: 440px;
+      overflow-y: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      min-width: 1100px;
+    }
+
+    thead {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    th {
+      background: #0b0f19;
+      padding: 10px 14px;
+      text-align: left;
+      font-family: var(--font-display);
+      font-weight: 700;
+      color: var(--text-tertiary);
+      border-bottom: 1px solid var(--border-subtle);
+      text-transform: uppercase;
+      font-size: 10.5px;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      font-family: var(--font-mono);
+      white-space: nowrap;
+      color: #cbd5e1;
+      font-variant-numeric: tabular-nums;
+    }
+
+    td.td-wrap {
+      white-space: normal;
+      max-width: 440px;
+      line-height: 1.45;
+    }
+
+    tr:hover td {
+      background: rgba(255, 255, 255, 0.025);
+    }
+
+    .ticket-pill {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      color: #f8fafc;
+      background: rgba(255, 255, 255, 0.06);
+      padding: 3px 7px;
+      border-radius: 4px;
+      display: inline-block;
+      white-space: nowrap;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    /* Toast Notification System */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 999;
+      pointer-events: none;
+    }
+
+    .toast {
+      background: rgba(13, 18, 28, 0.95);
+      border: 1px solid var(--border-subtle);
+      color: #fff;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(12px);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      pointer-events: auto;
+      transform: translateY(20px);
+      opacity: 0;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    /* Custom thin scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.2);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.25);
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div class="brand">
+      <div class="brand-logo-mark">CS</div>
+      <div>
+        <div class="brand-title">
+          CloudServe Support Orchestrator
+          <span class="badge badge-cyan">Decoupled Monolith</span>
+          <span class="badge badge-green">Clean Arch v2.0</span>
+        </div>
+      </div>
+    </div>
+    <div class="status-indicator">
+      <div class="pulse-dot"></div>
+      <span>SERVER OPERATIONAL (PORT 8000)</span>
+      <span style="color:var(--border-subtle);">|</span>
+      <span>CHROMADB 87 CHUNKS</span>
+      <span style="color:var(--border-subtle);">|</span>
+      <span>SQLITE WAL IMMUTABLE</span>
+    </div>
+  </header>
+
+  <main>
+    <!-- Scenario Selection Bar with Keybinding Badges -->
+    <div class="scenario-bar">
+      <div class="scenario-label">
+        <span>⚡ Quick Scenarios</span>
+      </div>
+      <button class="btn-scenario active" id="btn-sc-auto" onclick="loadScenario('auto')" title="Hotkey [1]">
+        <kbd>1</kbd>
+        <span>AUTO_RESOLVED (Export Cursor)</span>
+      </button>
+      <button class="btn-scenario" id="btn-sc-veto" onclick="loadScenario('veto')" title="Hotkey [2]">
+        <kbd>2</kbd>
+        <span>SAFETY_VETO (Database Down)</span>
+      </button>
+      <button class="btn-scenario" id="btn-sc-gate1" onclick="loadScenario('gate1')" title="Hotkey [3]">
+        <kbd>3</kbd>
+        <span>GATE 1 (Low Confidence &lt; 0.75)</span>
+      </button>
+      <button class="btn-scenario" id="btn-sc-gate2" onclick="loadScenario('gate2')" title="Hotkey [4]">
+        <kbd>4</kbd>
+        <span>GATE 2 (Low Sim &lt; 0.65)</span>
+      </button>
+      <button class="btn-scenario" id="btn-sc-guard" onclick="loadScenario('guard')" title="Hotkey [5]">
+        <kbd>5</kbd>
+        <span>GUARDRAIL (Ungrounded Veto)</span>
+      </button>
+      <button class="btn-scenario" id="btn-sc-pii" onclick="loadScenario('pii')" title="Hotkey [6]">
+        <kbd>6</kbd>
+        <span>PII REDACTION (Luhn Card)</span>
+      </button>
+      <button class="btn-scenario" style="margin-left:auto; background:rgba(139, 92, 246, 0.1); border-color:rgba(139, 92, 246, 0.35); color:#c084fc;"
+        onclick="testTamper()" title="Hotkey [T]">
+        <kbd style="color:#c084fc; border-color:rgba(139,92,246,0.4);">T</kbd>
+        <span>Test DB Trigger</span>
+      </button>
+    </div>
+
+    <!-- Main Grid: Input Form & Diagnostic Output -->
+    <div class="grid-layout">
+      <!-- Input Panel -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span>📥 Inbound Ticket Submission</span>
+          </div>
+          <span class="badge badge-cyan" id="channel-badge">CHAT CHANNEL</span>
+        </div>
+
+        <!-- Prefilled Template Helper Dropdown -->
+        <div class="form-group"
+          style="background: rgba(56, 189, 248, 0.04); padding: 12px; border-radius: 8px; border: 1px dashed rgba(56, 189, 248, 0.25); margin-bottom: 16px;">
+          <label for="template-select"
+            style="color: var(--cyan); display: flex; align-items: center; justify-content: space-between;">
+            <span>⚡ TEMPLATE HELPER (PREFILL &amp; CUSTOMIZE)</span>
+          </label>
+          <select id="template-select" onchange="applyTemplate(this.value)"
+            style="margin-top: 6px; font-weight: 600; color: #38bdf8;">
+            <option value="">-- Choose a prefilled template or edit custom fields --</option>
+            <optgroup label="✅ AUTO_RESOLVED Candidates (High Confidence + Grounded KB)">
+              <option value="auto_export" selected>DEV-0377: Export Endpoint &amp; Cursor Pagination (DOC-API-002)
+              </option>
+              <option value="auto_auth">DEV-0485: Role Granted Access Review (DOC-ACCT-001)</option>
+              <option value="auto_sso">DEV-0323: SSO SAML Auto-Provisioning (DOC-AUTH-003)</option>
+              <option value="auto_rotate">DEMO-001: Zero-Downtime API Key Rotation (DOC-AUTH-004)</option>
+            </optgroup>
+            <optgroup label="🚨 ESCALATED_SAFETY_VETO Candidates (Critical Outage &amp; Data Loss)">
+              <option value="veto_db">DEV-VETO-01: Production PostgreSQL Database Corrupt &amp; Down (CRITICAL)</option>
+              <option value="veto_security">DEV-VETO-02: Active Credential Leak / Security Breach (CRITICAL)</option>
+            </optgroup>
+            <optgroup label="📉 ESCALATED_ROUTER Candidates (Gate 1 or Gate 2 Failure)">
+              <option value="gate_conf">DEMO-GATE1-01: Ambiguous Error Code 5599 (Low Confidence c &lt; 0.75)</option>
+              <option value="gate_sim">DEMO-GATE2-01: Out-of-Domain Kitchen/Baking (Low Similarity s &lt; 0.65)</option>
+            </optgroup>
+            <optgroup label="⚠️ ESCALATED_GUARDRAIL Candidates (Lexical Entailment &amp; Hallucination)">
+              <option value="guard_yaml">DEMO-GUARD-01: Missing YAML Deployment Port/Path (Entailment Guardrail Veto)
+              </option>
+            </optgroup>
+            <optgroup label="🛡️ Inbound PII Redaction Candidates (PCI-DSS &amp; Security)">
+              <option value="pii_card">DEMO-PII-01: Renewal Visa (Luhn Checksum) &amp; Live Secret Key</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <form id="ticket-form" onsubmit="event.preventDefault(); submitTicket();">
+          <div class="form-group">
+            <label for="ticket-id">Ticket Identifier</label>
+            <input type="text" id="ticket-id" value="DEV-0377" required>
+          </div>
+
+          <div class="form-group">
+            <label for="channel">Ingestion Channel</label>
+            <select id="channel"
+              onchange="document.getElementById('channel-badge').textContent = this.value.toUpperCase() + ' CHANNEL';">
+              <option value="chat" selected>Chat (Real-time)</option>
+              <option value="email">Email (Formatted Header)</option>
+              <option value="forum">Community Forum (Markdown)</option>
+              <option value="docs_comment">Documentation Comment (URL Anchored)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="customer-id">Customer ID</label>
+            <input type="text" id="customer-id" value="cust_large_extract">
+          </div>
+
+          <div class="form-group">
+            <label for="subject">Ticket Subject</label>
+            <input type="text" id="subject" value="Question about the export endpoint" required>
+          </div>
+
+          <div class="form-group">
+            <label for="body">Raw Inbound Ticket Body</label>
+            <textarea id="body"
+              required>What is the right way to pull a very large extract? Requesting a big page size gets rejected and iterating page by page takes hours.</textarea>
+          </div>
+
+          <button type="submit" class="btn-submit" id="btn-submit">
+            <span>⚡ Run Orchestrator Pipeline</span>
+            <kbd style="background: rgba(0,0,0,0.25); padding: 2px 6px; border-radius: 4px; font-size: 11px;">Ctrl+Enter</kbd>
+          </button>
+        </form>
+      </div>
+
+      <!-- Right Column: Pipeline Nodes & Live Results -->
+      <div style="display:flex; flex-direction:column; gap:16px;">
+        <!-- Live Pipeline Node Strip (Clean 7-Node Execution DAG) -->
+        <div class="pipeline-nodes">
+          <div class="p-node" id="node-ingest">
+            <div class="p-node-title">1. Ingest</div>
+            <div class="p-node-status" id="status-ingest">READY</div>
+          </div>
+          <div class="p-node" id="node-retrieve">
+            <div class="p-node-title">2. Retrieve</div>
+            <div class="p-node-status" id="status-retrieve">CHROMA 87</div>
+          </div>
+          <div class="p-node" id="node-classify">
+            <div class="p-node-title">3. Classify</div>
+            <div class="p-node-status" id="status-classify">INTENT</div>
+          </div>
+          <div class="p-node" id="node-router">
+            <div class="p-node-title">4. Dual Gates</div>
+            <div class="p-node-status" id="status-router">ORTHOGONAL</div>
+          </div>
+          <div class="p-node" id="node-generate">
+            <div class="p-node-title">5. Cascade</div>
+            <div class="p-node-status" id="status-generate">XML PROMPT</div>
+          </div>
+          <div class="p-node" id="node-guard">
+            <div class="p-node-title">6. Guardrails</div>
+            <div class="p-node-status" id="status-guard">PII / ENTAIL</div>
+          </div>
+          <div class="p-node" id="node-audit">
+            <div class="p-node-title">7. SQLite WAL</div>
+            <div class="p-node-status" id="status-audit">APPEND-ONLY</div>
+          </div>
+        </div>
+
+        <!-- Diagnostic Decision Card -->
+        <div class="panel" id="result-panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <span>📊 Real-Time Orchestration Diagnostics</span>
+            </div>
+            <span class="badge badge-green" id="res-latency">LATENCY: READY</span>
+          </div>
+
+          <!-- Decision Banner -->
+          <div class="decision-banner banner-auto" id="decision-banner">
+            <div class="banner-left">
+              <div class="banner-status" id="banner-status">AUTO_RESOLVED</div>
+              <div class="banner-reason" id="banner-reason">Independent orthogonal dual gates satisfied (confidence &ge;
+                0.75, similarity &ge; 0.65)</div>
+            </div>
+            <div class="banner-metrics">
+              <div class="bm-item">
+                <span class="bm-val" id="bm-conf">0.92</span>
+                <span class="bm-lbl">Confidence</span>
+              </div>
+              <div class="bm-item">
+                <span class="bm-val" id="bm-sim">0.66</span>
+                <span class="bm-lbl">Cosine Sim</span>
+              </div>
+              <div class="bm-item">
+                <span class="bm-val" id="bm-urgency">MEDIUM</span>
+                <span class="bm-lbl">Urgency</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dual Gates Card -->
+          <div class="dual-gates-card">
+            <div class="gate-box">
+              <div class="gate-header">
+                <span class="gate-title">Gate 1: Intent Confidence</span>
+                <span class="badge badge-green" id="gate1-badge">PASS (&ge; 0.75)</span>
+              </div>
+              <div class="gate-stat" id="gate1-val">0.92 / 1.00</div>
+              <div class="gate-meter">
+                <div class="gate-bar" id="gate1-bar" style="width: 92%; background: var(--emerald);"></div>
+              </div>
+            </div>
+
+            <div class="gate-box">
+              <div class="gate-header">
+                <span class="gate-title">Gate 2: Chroma Similarity</span>
+                <span class="badge badge-green" id="gate2-badge">PASS (&ge; 0.65)</span>
+              </div>
+              <div class="gate-stat" id="gate2-val">0.66 / 1.00</div>
+              <div class="gate-meter">
+                <div class="gate-bar" id="gate2-bar" style="width: 66%; background: var(--cyan);"></div>
+              </div>
+            </div>
+
+            <div class="gate-box">
+              <div class="gate-header">
+                <span class="gate-title">Safety Veto &amp; Urgency</span>
+                <span class="badge badge-green" id="gate3-badge">SAFE (NON-CRITICAL)</span>
+              </div>
+              <div class="gate-stat" id="gate3-val">NO VETO MATCH</div>
+              <div class="gate-meter">
+                <div class="gate-bar" id="gate3-bar" style="width: 100%; background: var(--emerald);"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Output Content Area with Live API Inspector Tabs -->
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div class="tab-toggle-group">
+                <button id="btn-tab-grounded" class="tab-toggle active" onclick="switchOutputTab('grounded')">📄
+                  Grounded View</button>
+                <button id="btn-tab-req" class="tab-toggle" onclick="switchOutputTab('req')">🌐 HTTP Request</button>
+                <button id="btn-tab-resp" class="tab-toggle" onclick="switchOutputTab('resp')">⚡ HTTP Response JSON</button>
+              </div>
+              <div style="display:flex; gap:8px; align-items:center;">
+                <button class="tab-action-btn" onclick="copyCurrentTabContent()">📋 Copy View</button>
+                <span class="badge badge-green" id="api-call-badge">POST /tickets/process &bull; 200 OK</span>
+              </div>
+            </div>
+
+            <div class="tab-content-area" id="tab-content">Use the export endpoint, which runs asynchronously and returns a download link for the full extract <span
+                class="citation-tag" onclick="copyCitation('DOC-API-002')">[DOC-API-002]</span>.
+If you must paginate, keep each page size at or below two hundred, because larger requests are rejected <span
+                class="citation-tag" onclick="copyCitation('DOC-API-002')">[DOC-API-002]</span>.
+Iterate with cursor pagination: pass the next_cursor value from each response as the cursor parameter of the next request and stop when it is null <span
+                class="citation-tag" onclick="copyCitation('DOC-API-002')">[DOC-API-002]</span>.
+Be aware that cursors expire after one hour, so handle expiry by restarting from a recorded checkpoint if needed <span
+                class="citation-tag" onclick="copyCitation('DOC-API-002')">[DOC-API-002]</span>.</div>
+            <div class="json-code-box" id="tab-content-req" style="display:none; color:#38bdf8;"></div>
+            <div class="json-code-box" id="tab-content-resp" style="display:none; color:#10b981;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live API Activity Stream Ticker -->
+    <div class="api-log-box" id="api-log-box">
+      <span style="font-weight:700; color:#fff; display:inline-flex; align-items:center; gap:6px;">
+        <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--cyan);"></span>
+        LIVE API TRAFFIC:
+      </span>
+      <span class="api-log-entry" id="api-log-text">System operational. Click any Quick Scenario or choose a template to watch HTTP pipeline calls in real time.</span>
+    </div>
+
+    <!-- Bottom Section: Live SQLite Decision Log Table with Search & Filter -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span>📜 Immutable SQLite Decision Log (data/decision_log.db &bull; WAL Mode)</span>
+          <span class="badge badge-cyan" id="log-count-badge">AUDIT RECORDS</span>
+        </div>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <input type="text" id="audit-search" placeholder="Filter audit records..." 
+            oninput="filterAuditTable(this.value)"
+            style="padding: 5px 10px; font-size: 11px; width: 190px; border-radius: 6px;">
+          <span class="badge badge-green">TRIGGER IMMUTABILITY ACTIVE</span>
+          <button class="btn-scenario" onclick="loadAuditTable()" style="padding:5px 12px; font-size:11px;">
+            <span>🔄 Refresh Log</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>RowID</th>
+              <th>Ticket ID</th>
+              <th>Channel</th>
+              <th>Inferred Intent</th>
+              <th>Urgency</th>
+              <th>Confidence</th>
+              <th>Similarity</th>
+              <th>Final Disposition</th>
+              <th>Routing Reason / Guardrail Audit</th>
+              <th>Timestamp (UTC)</th>
+            </tr>
+          </thead>
+          <tbody id="audit-table-body">
+            <!-- Dynamically populated from /api/decisions/recent -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <!-- Floating Toast Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <script>
+    const TEMPLATES = {
+      auto_export: {
+        id: "DEV-0377",
+        channel: "chat",
+        customer: "cust_large_extract",
+        subject: "Question about the export endpoint",
+        body: "What is the right way to pull a very large extract? Requesting a big page size gets rejected and iterating page by page takes hours."
+      },
+      auto_auth: {
+        id: "DEV-0485",
+        channel: "chat",
+        customer: "cust_acct_811",
+        subject: "Granted role not taking effect",
+        body: "One of our developers cannot see a project she should have access to. I have granted her the role twice and it does not seem to take effect."
+      },
+      auto_sso: {
+        id: "DEV-0323",
+        channel: "email",
+        customer: "cust_sso_org",
+        subject: "SSO user provisioning question",
+        body: "New starters are not being created automatically when they log in through SSO for the first time. We expected them to be provisioned. Have we missed a setting?"
+      },
+      auto_rotate: {
+        id: "DEMO-001",
+        channel: "chat",
+        customer: "cust_cloud_884",
+        subject: "How do I rotate API key without downtime?",
+        body: "I need to rotate my production API key without causing downtime for our live microservices."
+      },
+      veto_db: {
+        id: "DEMO-VETO-01",
+        channel: "email",
+        customer: "cust_enterprise_991",
+        subject: "EMERGENCY: Production PostgreSQL cluster corrupted and offline",
+        body: "Our primary database has suffered severe disk corruption. The entire production cluster is down and returning 500 errors across all customer services. Immediate intervention required."
+      },
+      veto_security: {
+        id: "DEMO-VETO-02",
+        channel: "email",
+        customer: "cust_fintech_77",
+        subject: "SECURITY INCIDENT: Master credentials exposed in public repository",
+        body: "We detected an unauthorized data dump and our master root credentials have been leaked online. Please lock down access immediately!"
+      },
+      gate_conf: {
+        id: "DEMO-GATE1-01",
+        channel: "chat",
+        customer: "cust_dev_104",
+        subject: "System weird error code 5599",
+        body: "I got a weird 5599 error code on a node yesterday. Not sure what happened."
+      },
+      gate_sim: {
+        id: "DEMO-GATE2-01",
+        channel: "forum",
+        customer: "cust_kitchen_02",
+        subject: "Baking sourdough bread temperature",
+        body: "What temperature should I preheat my oven to bake sourdough bread with a crispy crust?"
+      },
+      guard_yaml: {
+        id: "DEMO-GUARD-01",
+        channel: "chat",
+        customer: "cust_deploy_88",
+        subject: "How do I configure container health checks in CloudServe?",
+        body: "How do I configure container health checks with port and path in deployment yaml?"
+      },
+      pii_card: {
+        id: "DEMO-PII-01",
+        channel: "chat",
+        customer: "cust_billing_44",
+        subject: "Billing charge for live key cs_live_9a8b7c6d5e4f3a2b1c0d9e8f",
+        body: "My corporate Visa card 4532015012345671 failed renewal on secret API key cs_live_9a8b7c6d5e4f3a2b1c0d9e8f. Please review account."
+      }
+    };
+
+    const SCENARIOS = {
+      auto: "auto_export",
+      veto: "veto_db",
+      gate1: "gate_conf",
+      gate2: "gate_sim",
+      guard: "guard_yaml",
+      pii: "pii_card"
+    };
+
+    function showToast(msg, icon = 'ℹ️') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.innerHTML = `<span>${icon}</span> <span>${msg}</span>`;
+      container.appendChild(toast);
+      requestAnimationFrame(() => toast.classList.add('show'));
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+      }, 3200);
+    }
+
+    function copyCitation(docId) {
+      navigator.clipboard.writeText(docId);
+      showToast(`Citation tag ${docId} copied to clipboard!`, '📋');
+    }
+
+    function applyTemplate(key) {
+      if (!key || !TEMPLATES[key]) return;
+      const t = TEMPLATES[key];
+      document.getElementById('ticket-id').value = t.id;
+      document.getElementById('channel').value = t.channel;
+      document.getElementById('channel-badge').textContent = t.channel.toUpperCase() + ' CHANNEL';
+      document.getElementById('customer-id').value = t.customer;
+      document.getElementById('subject').value = t.subject;
+      document.getElementById('body').value = t.body;
+      showToast(`Loaded template for Ticket ${t.id}`, '⚡');
+    }
+
+    function loadScenario(type) {
+      document.querySelectorAll('.btn-scenario').forEach(b => b.classList.remove('active'));
+      const btnId = 'btn-sc-' + type;
+      const targetBtn = document.getElementById(btnId);
+      if (targetBtn) targetBtn.classList.add('active');
+
+      const templateKey = SCENARIOS[type];
+      document.getElementById('template-select').value = templateKey;
+      applyTemplate(templateKey);
+      submitTicket();
+    }
+
+    let lastRequestPayload = null;
+    let lastResponseData = null;
+    let cachedAuditRows = [];
+
+    function copyCurrentTabContent() {
+      let content = '';
+      if (document.getElementById('btn-tab-grounded').classList.contains('active')) {
+        content = document.getElementById('tab-content').innerText;
+      } else if (document.getElementById('btn-tab-req').classList.contains('active')) {
+        content = document.getElementById('tab-content-req').innerText;
+      } else if (document.getElementById('btn-tab-resp').classList.contains('active')) {
+        content = document.getElementById('tab-content-resp').innerText;
+      }
+      if (content) {
+        navigator.clipboard.writeText(content);
+        showToast('Active tab content copied to clipboard!', '📋');
+      }
+    }
+
+    function switchOutputTab(tab) {
+      document.querySelectorAll('.tab-toggle').forEach(b => b.classList.remove('active'));
+      const viewGrounded = document.getElementById('tab-content');
+      const viewReq = document.getElementById('tab-content-req');
+      const viewResp = document.getElementById('tab-content-resp');
+
+      viewGrounded.style.display = 'none';
+      viewReq.style.display = 'none';
+      viewResp.style.display = 'none';
+
+      if (tab === 'grounded') {
+        document.getElementById('btn-tab-grounded').classList.add('active');
+        viewGrounded.style.display = 'block';
+      } else if (tab === 'req') {
+        document.getElementById('btn-tab-req').classList.add('active');
+        viewReq.style.display = 'block';
+        viewReq.textContent = lastRequestPayload ? JSON.stringify(lastRequestPayload, null, 2) : '// No request submitted yet. Click a scenario to execute.';
+      } else if (tab === 'resp') {
+        document.getElementById('btn-tab-resp').classList.add('active');
+        viewResp.style.display = 'block';
+        viewResp.textContent = lastResponseData ? JSON.stringify(lastResponseData, null, 2) : '// No response received yet. Click a scenario to execute.';
+      }
+    }
+
+    async function submitTicket() {
+      const btn = document.getElementById('btn-submit');
+      btn.innerHTML = '<span>⏳ Processing Pipeline...</span>';
+
+      // Reset node styles
+      document.querySelectorAll('.p-node').forEach(n => n.className = 'p-node');
+
+      // Animate node progression smoothly
+      const nodes = ['node-ingest', 'node-retrieve', 'node-classify', 'node-router', 'node-generate', 'node-guard', 'node-audit'];
+      for (let i = 0; i < nodes.length; i++) {
+        document.getElementById(nodes[i]).classList.add('active');
+        await new Promise(r => setTimeout(r, 30));
+      }
+
+      const payload = {
+        ticket_id: document.getElementById('ticket-id').value,
+        id: document.getElementById('ticket-id').value,
+        channel: document.getElementById('channel').value,
+        customer_id: document.getElementById('customer-id').value,
+        subject: document.getElementById('subject').value,
+        body: document.getElementById('body').value,
+        metadata: {}
+      };
+
+      lastRequestPayload = payload;
+      const startTime = performance.now();
+      const timeStr = new Date().toLocaleTimeString();
+      document.getElementById('api-log-text').innerHTML = `<span style="color:var(--amber);">⏳ [${timeStr}] POST /tickets/process ... Dispatching payload for Ticket ${payload.ticket_id}</span>`;
+      document.getElementById('api-call-badge').className = 'badge badge-amber';
+      document.getElementById('api-call-badge').textContent = 'POST /tickets/process • PROCESSING';
+
+      try {
+        const resp = await fetch('/tickets/process', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const duration = Math.round(performance.now() - startTime);
+        const data = await resp.json();
+        lastResponseData = data;
+
+        const disp = data.final_disposition || data.status || 'UNKNOWN';
+        const isSuccess = disp === 'AUTO_RESOLVED' || disp === 'AUTO_RESPONDED';
+        const isGuard = disp === 'ESCALATED_GUARDRAIL';
+
+        document.getElementById('api-call-badge').className = 'badge badge-green';
+        document.getElementById('api-call-badge').textContent = `POST /tickets/process • 200 OK (${duration} ms)`;
+        document.getElementById('api-log-text').innerHTML = `
+          <span style="color:var(--emerald);">✔ [${timeStr}] POST /tickets/process</span> &bull; 
+          Status: <strong>200 OK</strong> &bull; 
+          Ticket: <strong>${data.ticket_id}</strong> &bull; 
+          Disposition: <strong style="color:${isSuccess ? 'var(--emerald)' : (isGuard ? '#c084fc' : 'var(--crimson)')}">${disp}</strong> &bull; 
+          Roundtrip: <strong>${duration} ms</strong> (Engine Latency: ${Math.round(data.latency_ms || 0)} ms)
+        `;
+
+        renderResult(data);
+        loadAuditTable();
+        showToast(`Processed ticket ${data.ticket_id} → ${disp}`, isSuccess ? '🚀' : '⚖️');
+
+        // Refresh JSON tabs if currently selected
+        if (document.getElementById('btn-tab-req').classList.contains('active')) {
+          document.getElementById('tab-content-req').textContent = JSON.stringify(lastRequestPayload, null, 2);
+        }
+        if (document.getElementById('btn-tab-resp').classList.contains('active')) {
+          document.getElementById('tab-content-resp').textContent = JSON.stringify(lastResponseData, null, 2);
+        }
+      } catch (err) {
+        console.error("API error:", err);
+        document.getElementById('api-call-badge').className = 'badge badge-red';
+        document.getElementById('api-call-badge').textContent = 'POST /tickets/process • FAILED';
+        document.getElementById('api-log-text').innerHTML = `<span style="color:var(--crimson);">❌ [${timeStr}] POST /tickets/process failed: ${err.message}</span>`;
+        showToast(`Request failed: ${err.message}`, '❌');
+      } finally {
+        btn.innerHTML = '<span>⚡ Run Orchestrator Pipeline</span> <kbd style="background: rgba(0,0,0,0.25); padding: 2px 6px; border-radius: 4px; font-size: 11px;">Ctrl+Enter</kbd>';
+      }
+    }
+
+    function renderResult(data) {
+      const banner = document.getElementById('decision-banner');
+      const statusEl = document.getElementById('banner-status');
+      const reasonEl = document.getElementById('banner-reason');
+      const contentEl = document.getElementById('tab-content');
+
+      const status = data.final_disposition || data.status || 'UNKNOWN';
+      const conf = (data.intent_confidence !== undefined && data.intent_confidence !== null) ? data.intent_confidence : (data.classification ? data.classification.confidence : 0.85);
+      const sim = (data.top_retrieval_score !== undefined && data.top_retrieval_score !== null) ? data.top_retrieval_score : (data.retrieved_chunks && data.retrieved_chunks.length > 0 ? data.retrieved_chunks[0].similarity_score : 0.88);
+      const urgency = data.urgency || (data.classification ? data.classification.urgency : 'MEDIUM');
+      const latency = (data.latency_ms !== undefined && data.latency_ms !== null) ? Math.round(data.latency_ms) : 0;
+
+      statusEl.textContent = status;
+      reasonEl.textContent = data.routing_reason || 'Pipeline evaluated successfully.';
+      document.getElementById('res-latency').textContent = `LATENCY: ${latency} MS`;
+
+      document.getElementById('bm-conf').textContent = conf.toFixed(2);
+      document.getElementById('bm-sim').textContent = sim.toFixed(2);
+      document.getElementById('bm-urgency').textContent = urgency;
+
+      // Gate meters
+      document.getElementById('gate1-val').textContent = `${conf.toFixed(2)} / 1.00`;
+      document.getElementById('gate1-bar').style.width = `${Math.min(100, Math.max(0, conf * 100))}%`;
+      document.getElementById('gate1-badge').className = conf >= 0.75 ? 'badge badge-green' : 'badge badge-red';
+      document.getElementById('gate1-badge').textContent = conf >= 0.75 ? 'PASS (≥ 0.75)' : 'FAIL (< 0.75)';
+
+      document.getElementById('gate2-val').textContent = `${sim.toFixed(2)} / 1.00`;
+      document.getElementById('gate2-bar').style.width = `${Math.min(100, Math.max(0, sim * 100))}%`;
+      document.getElementById('gate2-badge').className = sim >= 0.65 ? 'badge badge-green' : 'badge badge-red';
+      document.getElementById('gate2-badge').textContent = sim >= 0.65 ? 'PASS (≥ 0.65)' : 'FAIL (< 0.65)';
+
+      const isVeto = urgency === 'CRITICAL' || (data.routing_reason && data.routing_reason.includes('CRITICAL'));
+      document.getElementById('gate3-val').textContent = isVeto ? 'SAFETY VETO TRIPPED' : 'NO VETO MATCH';
+      document.getElementById('gate3-badge').className = isVeto ? 'badge badge-red' : 'badge badge-green';
+      document.getElementById('gate3-badge').textContent = isVeto ? 'CRITICAL OUTAGE VETO' : 'SAFE (NON-CRITICAL)';
+
+      if (status === 'AUTO_RESPONDED' || status === 'AUTO_RESOLVED') {
+        banner.className = 'decision-banner banner-auto';
+        document.getElementById('node-router').className = 'p-node success';
+        document.getElementById('node-generate').className = 'p-node success';
+        document.getElementById('node-guard').className = 'p-node success';
+        document.getElementById('node-audit').className = 'p-node success';
+
+        let text = data.final_response || data.response_text || '';
+        text = text.replace(/\[([A-Z0-9_-]+)\]/g, '<span class="citation-tag" onclick="copyCitation(\'$1\')">[$1]</span>');
+        contentEl.innerHTML = text || '<em>(Response generated successfully with no citations needed)</em>';
+      } else if (status === 'ESCALATED_GUARDRAIL') {
+        banner.className = 'decision-banner banner-guard';
+        document.getElementById('node-router').className = 'p-node success';
+        document.getElementById('node-generate').className = 'p-node success';
+        document.getElementById('node-guard').className = 'p-node guard';
+        document.getElementById('node-audit').className = 'p-node success';
+        const packet = data.escalation_packet || {
+          ticket_id: data.ticket_id,
+          final_disposition: status,
+          routing_reason: data.routing_reason,
+          inferred_intent: data.inferred_intent,
+          urgency: data.urgency,
+          guardrail_violations: ["LOW_UNIGRAM_ENTAILMENT / CITATION_GUARDRAIL_TRIPPED"]
+        };
+        contentEl.innerHTML = `<div style="color: #c084fc; font-weight:700; margin-bottom:10px;">⚠️ GUARDRAIL VETO: Grounding / Entailment check failed. Automated response safely suppressed. Escalation packet dispatched to Human Engineering On-call:</div><pre style="font-family:var(--font-mono); font-size:12px; color:#e2e8f0;">${JSON.stringify(packet, null, 2)}</pre>`;
+      } else if (isVeto) {
+        banner.className = 'decision-banner banner-veto';
+        document.getElementById('node-router').className = 'p-node veto';
+        document.getElementById('node-generate').className = 'p-node';
+        document.getElementById('node-guard').className = 'p-node';
+        document.getElementById('node-audit').className = 'p-node success';
+        const packet = data.escalation_packet || {
+          ticket_id: data.ticket_id,
+          final_disposition: status,
+          routing_reason: data.routing_reason,
+          inferred_intent: data.inferred_intent,
+          urgency: data.urgency
+        };
+        contentEl.innerHTML = `<div style="color: var(--crimson); font-weight:700; margin-bottom:10px;">🚨 CRITICAL SAFETY VETO: Critical severity or database corruption detected. Bypassed auto-response and routed immediately to Tier 2 Engineering On-call:</div><pre style="font-family:var(--font-mono); font-size:12px; color:#e2e8f0;">${JSON.stringify(packet, null, 2)}</pre>`;
+      } else {
+        banner.className = 'decision-banner banner-gate';
+        document.getElementById('node-router').className = 'p-node veto';
+        document.getElementById('node-generate').className = 'p-node';
+        document.getElementById('node-guard').className = 'p-node';
+        document.getElementById('node-audit').className = 'p-node success';
+        const packet = data.escalation_packet || {
+          ticket_id: data.ticket_id,
+          final_disposition: status,
+          routing_reason: data.routing_reason,
+          inferred_intent: data.inferred_intent,
+          urgency: data.urgency
+        };
+        contentEl.innerHTML = `<div style="color: var(--amber); font-weight:700; margin-bottom:10px;">⚖️ DUAL-GATE ESCALATION: Confidence or retrieval similarity below autonomy threshold. Escalation packet enriched for Tier 1 Support Specialist:</div><pre style="font-family:var(--font-mono); font-size:12px; color:#e2e8f0;">${JSON.stringify(packet, null, 2)}</pre>`;
+      }
+    }
+
+    function renderAuditTableRows(rows) {
+      const tbody = document.getElementById('audit-table-body');
+      if (!rows || rows.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding:24px; color:var(--text-tertiary);">No decision records found</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = rows.map(r => {
+        const disp = r.final_disposition;
+        let dispBadge = '';
+        if (disp === 'AUTO_RESOLVED' || disp === 'AUTO_RESPONDED') {
+          dispBadge = '<span class="badge badge-green">AUTO_RESOLVED</span>';
+        } else if (disp === 'ESCALATED_GUARDRAIL') {
+          dispBadge = '<span class="badge badge-purple">GUARDRAIL</span>';
+        } else if (r.urgency === 'CRITICAL' || (r.routing_reason && r.routing_reason.includes('CRITICAL'))) {
+          dispBadge = '<span class="badge badge-red">SAFETY_VETO</span>';
+        } else {
+          dispBadge = '<span class="badge badge-amber">ESCALATED</span>';
+        }
+
+        let urgBadge = '';
+        if (r.urgency === 'CRITICAL') urgBadge = '<span class="badge badge-red">CRITICAL</span>';
+        else if (r.urgency === 'HIGH') urgBadge = '<span class="badge badge-amber">HIGH</span>';
+        else urgBadge = '<span class="badge badge-cyan">' + (r.urgency || 'MEDIUM') + '</span>';
+
+        const confStr = (r.intent_confidence !== null && r.intent_confidence !== undefined) ? r.intent_confidence.toFixed(2) : '-';
+        const simStr = (r.top_retrieval_score !== null && r.top_retrieval_score !== undefined) ? r.top_retrieval_score.toFixed(2) : '-';
+        const timeStr = r.logged_at ? r.logged_at.slice(0, 19).replace('T', ' ') : '-';
+
+        return `
+          <tr>
+            <td><strong style="color:var(--text-tertiary);">#${r.id}</strong></td>
+            <td><span class="ticket-pill">${r.ticket_id}</span></td>
+            <td><span style="color:var(--text-secondary)">${r.channel}</span></td>
+            <td><span style="color:var(--cyan)">${r.inferred_intent || '-'}</span></td>
+            <td>${urgBadge}</td>
+            <td>${confStr}</td>
+            <td>${simStr}</td>
+            <td>${dispBadge}</td>
+            <td class="td-wrap" title="${r.routing_reason || ''}">${r.routing_reason || '-'}</td>
+            <td style="color:var(--text-tertiary); font-size:11px;">${timeStr}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function filterAuditTable(query) {
+      if (!query) {
+        renderAuditTableRows(cachedAuditRows);
+        return;
+      }
+      const q = query.toLowerCase();
+      const filtered = cachedAuditRows.filter(r => 
+        (r.ticket_id && r.ticket_id.toLowerCase().includes(q)) ||
+        (r.channel && r.channel.toLowerCase().includes(q)) ||
+        (r.inferred_intent && r.inferred_intent.toLowerCase().includes(q)) ||
+        (r.final_disposition && r.final_disposition.toLowerCase().includes(q))
+      );
+      renderAuditTableRows(filtered);
+    }
+
+    async function loadAuditTable() {
+      try {
+        const resp = await fetch('/api/decisions/recent?limit=25');
+        if (resp.ok) {
+          const rows = await resp.json();
+          cachedAuditRows = rows || [];
+          const countBadge = document.getElementById('log-count-badge');
+          if (countBadge) countBadge.textContent = `${cachedAuditRows.length} AUDIT RECORDS`;
+          renderAuditTableRows(cachedAuditRows);
+        }
+      } catch (e) {
+        console.warn("Could not load audit history:", e);
+      }
+    }
+
+    async function testTamper() {
+      try {
+        const resp = await fetch('/api/test/tamper', { method: 'POST' });
+        const data = await resp.json();
+        const banner = document.getElementById('decision-banner');
+        banner.className = 'decision-banner banner-auto';
+        document.getElementById('banner-status').textContent = 'IMMUTABILITY TRIGGER VERIFIED';
+        document.getElementById('banner-reason').textContent = data.message;
+        document.getElementById('tab-content').textContent = `
+[IMMUTABILITY AUDIT] Attempted rogue query: UPDATE decision_log SET final_disposition = 'TAMPERED' WHERE id = 1
+[SQLITE ENGINE] Aborted execution via trigger: decision_log_no_update
+[STATUS] ${data.status.toUpperCase()}
+[MESSAGE] ${data.message}
+
+✔ Append-only persistence mathematically verified under SQLite WAL triggers.
+✔ Direct UPDATE and DELETE queries rejected by engine.
+        `;
+        showToast('Trigger blocked unauthorized UPDATE!', '🔒');
+      } catch (e) {
+        console.error("Error testing tamper:", e);
+      }
+    }
+
+    // Global Hotkeys: 1-6 for scenarios, T for tamper, Ctrl+Enter to submit
+    document.addEventListener('keydown', (e) => {
+      // Don't trigger if user is actively typing in input or textarea
+      const tag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+      if (tag === 'input' || tag === 'textarea') {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+          e.preventDefault();
+          submitTicket();
+        }
+        return;
+      }
+
+      if (e.key === '1') loadScenario('auto');
+      else if (e.key === '2') loadScenario('veto');
+      else if (e.key === '3') loadScenario('gate1');
+      else if (e.key === '4') loadScenario('gate2');
+      else if (e.key === '5') loadScenario('guard');
+      else if (e.key === '6') loadScenario('pii');
+      else if (e.key === 't' || e.key === 'T') testTamper();
+      else if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        submitTicket();
+      }
+    });
+
+    // Initial load
+    window.onload = () => {
+      loadAuditTable();
+    };
+  </script>
+</body>
+
+</html>

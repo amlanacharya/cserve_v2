@@ -37,6 +37,7 @@ RULES:
 3. Every claim or procedural step must include an exact citation anchor to the parent document ID in brackets, e.g. [DOC-AUTH-001] or [DOC-DEPLOY-001].
 4. Never include customer credentials, credit cards, or internal secret keys in the response.
 5. If the documentation does not contain enough information to resolve the issue, state what is known and advise escalation.
+6. Output ONLY the direct, concise procedural answer citing [DOC-ID] brackets for every statement. Do NOT include conversational pleasantries, greetings (e.g. 'Hello'), or closing sign-offs (e.g. 'Thank you'), because every sentence is strictly validated by an automated unigram entailment guardrail.
 """
 
 

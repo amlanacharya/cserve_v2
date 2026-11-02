@@ -118,7 +118,7 @@ def normalize_ticket_with_stats(raw_payload: dict[str, Any]) -> tuple[CanonicalT
         channel = "email"
 
     # 2. Extract ticket_id
-    ticket_id = str(raw_payload.get("ticket_id") or uuid.uuid4())
+    ticket_id = str(raw_payload.get("ticket_id") or raw_payload.get("id") or uuid.uuid4())
 
     # 3. Channel-specific field extraction
     subject: str | None = None
