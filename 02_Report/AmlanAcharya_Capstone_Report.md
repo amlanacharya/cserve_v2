@@ -15,9 +15,9 @@ CloudServe Solutions asked for a chatbot. Its support function receives more tha
 
 I built the CloudServe Support Orchestrator: a Python modular monolith, coordinated by a LangGraph state graph, that normalises tickets from four channels, redacts personal data, classifies intent and urgency with a confidence score, retrieves passages from the knowledge base, and applies two independent gates before deciding whether to answer automatically. Answers must carry `[DOC-ID]` citations and pass an output guardrail. Every other ticket is escalated with an enriched packet that carries the inferred intent, the failed gates and the two most relevant articles. Every decision is written to an append-only SQLite audit log protected by database triggers. The repository contains 132 automated tests, all of which pass, and an unattended evaluation harness that takes an input and an output path.
 
-**What it achieved.** I ran the harness unattended over the 80 validation tickets on 8 November 2026. The system processed all 80 without a crash and logged all 80. Intent classification accuracy was 82.5 per cent, retrieval precision at three was 92.5 per cent, and expected calibration error (ECE) was 0.070, inside the 0.15 target. No ticket labelled `must_not_auto_respond` was answered automatically (14 of 14 escalated).
+**What it achieved.** I ran the harness unattended over the 80 validation tickets on 8 November 2026 and the system processed and logged all 80 without a crash. In the final configuration, intent accuracy was 85.0 per cent, retrieval precision at three was 92.5 per cent, and expected calibration error (ECE) was 0.093, inside the 0.15 target. No ticket labelled `must_not_auto_respond` was answered automatically (0 of 14).
 
-**What it did not achieve, and the single most important caveat.** The system auto-resolved only 6 of 80 tickets, an FCR of **7.5 per cent against a 65 per cent target**. It missed the target by a wide margin, and a figure of 68.3 per cent that appeared in earlier drafts of this report, the film and the video script was not supported by any run of the harness and has been withdrawn. The cause is measurable. Only 20 of 80 tickets reached a retrieval similarity of 0.65, so the second gate stopped 61 tickets; and the output guardrail then vetoed 13 of the 19 answers that were generated. Two of the six answers that did go out were for tickets labelled as needing escalation. Latency also missed target: P95 was 7.7 seconds against a 3-second budget, measured on a rate-limited free tier. Section 7 gives the evidence, Section 9 explains what the revision log did and did not fix, and Section 10 sets out what I would change first. The design is safe, auditable and well calibrated, and in its current configuration it is too conservative to deliver the business outcome.
+**What it did not achieve, and the single most important caveat.** First-contact resolution, measured as the share of tickets answered automatically, was **23.8 per cent (19 of 80) against a 65 per cent target**. An earlier figure of 68.3 per cent in drafts of this report, the film and the video script was not supported by any run and has been withdrawn. The first honest run gave 7.5 per cent; lowering the retrieval-similarity floor from 0.65 to 0.40, forcing sensitive intents to a human, tightening the generation prompt and stemming the guardrail's word match raised it to 23.8 per cent. A quarter of the set (25 tickets) was escalated only because the free-tier model provider hit its rate limit, so the figure understates what the design could do on a paid key; among the 55 provider-served tickets the answer rate was 34.5 per cent, still well below target. Five of the 19 answers sent were for tickets labelled as needing a human, which is too high for automatic sending. P95 latency was 8.2 seconds against a 3-second budget, again confounded by rate limits. Section 7 reports all four validation runs, how each change was chosen, and that one choice (the similarity floor) was informed by validation results, so the figures are optimistic. The design is safe, calibrated and auditable, and it does not yet deliver the business outcome.
 
 ---
 
@@ -78,7 +78,7 @@ I analysed `05_Datasets/development_tickets.json` directly. The results differ i
 
 The data support the interviews in three ways. First, 71.4 per cent of tickets are answerable from the knowledge base and 62.2 per cent are labelled as suitable for automatic response, which matches Sofia's "seven in ten" and Daniel's claim that a large share of escalations are avoidable: the historical escalation rate of 56.2 per cent is far above the 37.8 per cent that the labels say genuinely needs a human. Second, the historical FCR of 43.8 per cent is close to the 42 per cent Marcus quoted. Third, 17.4 per cent of tickets carry the `must_not_auto_respond` label, which confirms that a substantial minority of the workload touches security, billing disputes or data location where automation must stay out.
 
-One result I did not anticipate is that **the 65 per cent target sits above the labelled auto-respondable share on the validation set** (48 of 80, or 60.0 per cent). If FCR is defined as the share of tickets resolved automatically without escalation, even a perfect router could not reach 65 per cent on that set. I return to this in Section 7.5, because it changes how the headline number should be read.
+One result I did not anticipate is that **the 65 per cent target sits above the labelled auto-respondable share on the validation set** (48 of 80, or 60.0 per cent). If FCR is defined as the share of tickets resolved automatically without escalation, even a perfect router could not reach 65 per cent on that set. I return to this in Section 7.6, because it changes how the headline number should be read.
 
 Mean CSAT in the data is 2.97, a little below the 3.2 quoted in the brief. I have used the measured figure and note the difference rather than reconcile it.
 
@@ -96,7 +96,7 @@ FR-02 requires classification of intent and urgency with a confidence score betw
 
 FR-03 requires semantic retrieval over the 29 knowledge-base articles (A4). Articles are chunked by their H2 and H3 headings into passages that satisfy the specification's bound of 70 to 90 chunks, embedded, and queried by cosine similarity. The top similarity score becomes the retrieval signal $s_{ret}$.
 
-FR-04 requires deterministic routing on two independent conditions (A5). A ticket is answered automatically only if the classification confidence $c \ge 0.75$, the retrieval similarity $s_{ret} \ge 0.65$, urgency is not critical, and the safety veto is not set. The two scores are never blended.
+FR-04 requires deterministic routing on two independent conditions (A5). A ticket is answered automatically only if the classification confidence $c \ge 0.75$, the retrieval similarity $s_{ret} \ge 0.40$ (0.65 in the first implementation, see Section 7.2), urgency is not critical, and the safety veto is not set. The two scores are never blended.
 
 FR-05 requires citation-grounded generation (A6). Answers are synthesised only from retrieved passages, the customer text is sandboxed inside XML delimiters, and every claim carries a `[DOC-ID]` citation.
 
@@ -133,7 +133,7 @@ Raw ticket (email | chat | forum | docs_comment)
 [retrieve] ChromaDB cosine search over 87 chunks / 29 articles -> s_ret
    |
    v
-[route]  AUTO_RESPOND  iff  c >= 0.75  AND  s_ret >= 0.65  AND  urgency != CRITICAL  AND  not veto
+[route]  AUTO_RESPOND  iff  c >= 0.75  AND  s_ret >= 0.40  AND  urgency != CRITICAL  AND  not veto
    |                                        \
    v                                         +--> ESCALATE (router): EscalationPacket with failed gates + top-2 articles
 [generate] grounded answer with [DOC-ID] citations
@@ -149,9 +149,9 @@ The reason for a single process rather than separate services is proportionate: 
 
 ### 5.2 Why two gates and not one score
 
-An early version of the design combined confidence and retrieval similarity into one blended score of the form $S = 0.5c + 0.5s_{ret}$. I rejected it, and the revision log records why. A blended score lets a strong value on one axis hide a weak value on the other: a confidently wrong classification of the intent paired with a retrieval hit on a loosely related article can score above the threshold, so a wrong answer is sent. Keeping the conditions separate means that each failure produces a distinct, human-readable reason in the audit log, for example `Escalated: s_ret=0.62<0.65`. That string is what lets a compliance reviewer ask why a decision was made, which Marcus identified as a requirement.
+An early version of the design combined confidence and retrieval similarity into one blended score of the form $S = 0.5c + 0.5s_{ret}$. I rejected it, and the revision log records why. A blended score lets a strong value on one axis hide a weak value on the other: a confidently wrong classification of the intent paired with a retrieval hit on a loosely related article can score above the threshold, so a wrong answer is sent. Keeping the conditions separate means that each failure produces a distinct, human-readable reason in the audit log, for example `Escalated: s_ret=0.35<0.4`. That string is what lets a compliance reviewer ask why a decision was made, which Marcus identified as a requirement.
 
-The evaluation shows the cost of this design. Independent gates are only as good as their individual thresholds, and the 0.65 floor on retrieval similarity turned out to be poorly matched to the embedding model's score distribution (Section 7.3).
+The evaluation shows the cost of this design. Independent gates are only as good as their individual thresholds, and the 0.65 floor on retrieval similarity turned out to be poorly matched to the embedding model's score distribution (Section 7.2).
 
 ### 5.3 Three-tier provider cascade
 
@@ -169,6 +169,10 @@ I considered and rejected four alternatives. A fully agentic design, in which a 
 
 I built the system in six phases that follow the Build Specification's checkpoints: ingestion and redaction, chunking and retrieval, classification and routing, generation and guardrails, orchestration and audit, and the evaluation harness. Each phase had its own unit tests and the final suite contains 132 tests across `tests/unit` and `tests/integration`. On 8 November 2026 all 132 passed in 45 seconds.
 
+### 6.1a Project history: two implementations
+
+This repository is the second implementation. The first (v1, a separate repository, 22 and 23 October 2026) was built without LangGraph, used a locally trained intent classifier and a different retrieval stack, and its run register (`evaluation/results/RUNS.md` in that repository) records a validation run of 55 answered and 25 escalated tickets, a first-contact resolution of 68.8 per cent. That figure should be read with care: the same register notes that 77.5 per cent of validation ticket bodies appear verbatim in the development set, so a classifier trained on development data benefits from near-duplicate templates. The implementation described in this report replaced it on 31 October with the stack suggested in the Build Specification (a LangGraph state graph and hosted-model classification), and it is the one measured in Section 7. On the same validation set it auto-resolved 7.5 per cent. I have not yet determined how much of that gap comes from the classifier, the retrieval scores or the stricter guardrail, and I would resolve that before choosing which design to carry forward.
+
 ### 6.2 Difficulties and how they were resolved
 
 The first difficulty was a dependency conflict. The pinned vector store, ChromaDB 0.3.21, was written for Pydantic version 1, while the rest of the project requires Pydantic version 2. ChromaDB imports `BaseSettings` from Pydantic and sets attributes before calling the base initialiser, both of which fail under version 2. I resolved it with a small compatibility shim installed before ChromaDB is imported, which maps `BaseSettings` to its version-1 counterpart and patches the collection initialiser. This is a workaround for a pinned dependency and I would remove it by upgrading ChromaDB if the pin were not part of the specification.
@@ -181,89 +185,87 @@ The fourth was correctness drift found in review. A code-review pass produced fo
 
 ### 6.3 What I would restructure
 
-Two things. The retrieval-similarity threshold and the entailment guard are configuration-level decisions that the evaluation shows to be the system's binding constraints, yet they were fixed early from the specification rather than fitted to the development set. I would add a calibration step that fits them on the 500 development tickets and reports the resulting trade-off before they are frozen. Second, the dashboard, the harness and the API each construct an orchestrator; I would extract a single factory so that configuration is set in one place.
+Two things. The retrieval-similarity threshold and the entailment guard are configuration-level decisions that the evaluation showed to be the system's binding constraints, yet they were fixed early from the specification rather than fitted to the development set, and I corrected the threshold only after seeing validation results. I would add a calibration step that fits them on the 500 development tickets and reports the trade-off before they are frozen. Second, the dashboard, the harness and the API each construct an orchestrator; I would extract a single factory so that configuration is set in one place.
 
 ---
 
 ## 7. Evaluation
 
-### 7.1 Method
+### 7.1 Method and run register
 
-I ran `python -m evaluation.harness --input 05_Datasets/validation_tickets.json --output <path> --delay 0.3` on 8 November 2026 against a fresh decision database. The input is the 80-ticket validation set supplied with the pack; I have not seen the 120-ticket hidden set and have not run against it. The harness was run unattended and completed without intervention. Metrics are computed from the audit database by `evaluation/metrics.py`, and the raw report is committed at `evaluation/validation_report.json`. Providers were Groq (75 tickets) and the offline fallback (5 tickets), which were served when the providers were rate-limited and every retry failed.
+I evaluated the system with `python -m evaluation.harness --input 05_Datasets/validation_tickets.json --output <path> --delay <s>` against a fresh decision database each time. The input is the 80-ticket validation set supplied with the pack. I have not seen the 120-ticket hidden set and have not run against it: **the hidden set has been used zero times.** Metrics come from the audit database through `evaluation/metrics.py`, and every run's raw report is committed.
 
-**How many times has the validation set been used?** The validation labels are available to me and I used them throughout development; this report's figures come from a single full run on 8 November 2026. Earlier development runs used the harness on small subsets for smoke-testing. The hidden set has been used zero times by me.
+The validation set was run four times on 8 November 2026, and I made system decisions after seeing the first three. That makes the validation figures optimistic as an estimate for unseen data, and the reader should weigh them accordingly. Table 3 lists every run and what changed between them.
 
-I used an inter-ticket delay of 0.3 seconds rather than the default 1.5. This lowers wall-clock time but increases rate-limit pressure, which affects the latency figures in Section 7.4.
+**Table 3. Validation runs (n = 80), all on 8 November 2026.**
 
-### 7.2 Results
+| Run | Configuration | Auto-resolved (FCR) | Router | Guardrail | Provider fallback | Wrong-route answers |
+|---|---|---|---|---|---|---|
+| 1 | Original: floor 0.65, prompt v1, lexical guard | 6 (7.5%) | 61 | 13 | 0 | 2 of 6 |
+| 2 | Floor lowered to 0.40 | 25 (31.3%) | 19 | 32 | 4 | 7 of 25 |
+| 3 | **Final:** floor 0.40, intent veto, prompt v2, stemmed guard, pacing 0.3 s | **19 (23.8%)** | 27 | 9 | **25** | 5 of 19 |
+| 4 | Same as run 3, pacing 2.5 s, after the daily token cap was hit | 2 (2.5%) | 27 | 1 | 50 | 0 of 2 |
 
-**Table 3. Validation results (n = 80), run of 8 November 2026.**
+Run 4 is not informative about the design. The hosted provider's daily token allowance (200,000 tokens for the generation model) was exhausted by my own experiments, so 50 of 80 tickets fell back to the offline tier. I report it because omitting it would hide that the system's output depends on provider quota. Run 3 is also affected, more mildly: 25 tickets fell back after the per-minute token limit was hit at 0.3-second pacing. **I use run 3 as the headline result because it is the only run of the final configuration that reached most of the set**, and I state its rate-limit contamination wherever I quote it.
+
+The classifier output was cached between runs, so intent accuracy is identical in runs 2 to 4 (85.0 per cent). Run 1's 82.5 per cent differs only because five tickets had fallen back offline in that run and were classified by the provider afterwards. The accuracy gain from run 1 to run 2 therefore reflects provider availability, not any change I made.
+
+### 7.2 What I changed between runs, and how I chose it
+
+Four changes separate run 1 from run 3. I report how each was chosen because one of them was informed by validation results.
+
+1. **Retrieval-similarity floor, 0.65 to 0.40.** This was chosen after run 1, on the evidence that the floor sat at the median similarity of the validation set. It was a decision informed by validation results, which is the weakest of the four. The v1 repository's own experiments, run on development data, reached the same conclusion: raw cosine scores do not separate answerable from unanswerable tickets (median 0.615 against 0.618), so a high floor mostly removes good tickets.
+2. **Intent-based escalation.** Four intents (`compliance_request`, `feature_request`, `security_incident`, `unclear_request`) are labelled escalate on 100 per cent of the 500 development tickets, and discovery named data location as a risk where nothing automated should answer, so `data_residency` is also forced to a human. This follows from development data and the interviews, not from validation.
+3. **Generation prompt v2.** The prompt now requires every sentence to restate something in the retrieved context and to add no advice of its own. I chose it on development tickets: I generated drafts for a fixed sample of development tickets under each prompt and asked a second model to judge whether each draft's claims were supported by its sources. Under prompt v1 the judge found 24 of 49 judged drafts fully supported (49 per cent); under prompt v2 it found 27 of 42 (64 per cent). Thirteen and nine drafts could not be judged because of rate limits. The judge is a language model, not a person, and is itself fallible, so this is evidence of direction, not a measured hallucination rate.
+4. **Stemmed guardrail matching.** On the same judged drafts, matching word stems rather than exact words let the guard release 26 of 42 drafts with 1 judged-unsupported release and 2 judged-supported vetoes, compared with 24 releases under the exact-word rule. The threshold itself (0.5 per sentence) was left unchanged.
+
+The draft files, judge verdicts and scripts are committed in `evaluation/experiments/` so that these choices can be re-examined.
+
+### 7.3 Results of the final configuration
+
+**Table 4. Final configuration (run 3), validation set, n = 80.**
 
 | Metric | Result | Target | Met? |
 |---|---|---|---|
 | Tickets processed and logged | 80 of 80 | all | Yes |
-| First-contact resolution (auto-resolved share) | 7.5% (6 of 80) | at least 65% | **No** |
-| Escalated by router (gate failure or veto) | 61 | n/a | n/a |
-| Escalated by output guardrail | 13 | n/a | n/a |
-| Escalated by error | 0 | 0 | Yes |
-| Intent accuracy (exact match, 21 labels) | 82.5% | n/a | n/a |
-| Expected calibration error, 10 bins | 0.070 | at most 0.15 | Yes |
+| First-contact resolution (auto-resolved share) | 23.8% (19 of 80) | at least 65% | **No** |
+| Auto-resolved among provider-served tickets | 34.5% (19 of 55) | at least 65% | **No** |
+| Escalated by router (gates or veto) | 27 | n/a | n/a |
+| Escalated by output guardrail | 9 | n/a | n/a |
+| Escalated by provider fallback (rate limit) | 25 | 0 | **No** |
+| Intent accuracy (exact match, 21 labels) | 85.0% | n/a | n/a |
+| Expected calibration error, 10 bins | 0.093 | at most 0.15 | Yes |
 | Retrieval precision at 3 | 92.5% | n/a | n/a |
-| Latency P50 / P90 / P95 | 3.5 s / 7.1 s / 7.7 s | P95 at most 3 s | **No** |
+| Latency P50 / P90 / P95 | 1.3 s / 8.2 s / 8.2 s | P95 at most 3 s | **No** |
 | `must_not_auto_respond` tickets auto-answered | 0 of 14 | 0 | Yes |
+| Answers sent for tickets labelled escalate | 5 of 19 | 0 | **No** |
 | Unhandled crashes | 0 | 0 | Yes |
 
-**Figure 2. Where the 80 validation tickets ended up.**
+**Figure 2. Where the 80 validation tickets ended up (final configuration).**
 
 {{FIG2}}
 
-The business outcome is a failure against target, and the report should not soften it. Of 80 tickets, 6 were answered, 61 were stopped by the routing gates and 13 were stopped by the guardrail. The safe path worked: no ticket that should never be automated was answered, there were no crashes, and every decision was logged. The helpful path did not: the system answered one ticket in thirteen.
+First-contact resolution improved from 7.5 to 23.8 per cent between run 1 and run 3, and the target of 65 per cent is still missed by a wide margin. The system is safer than at run 1 (no data-residency ticket was answered, and no must-not ticket was) and it released answers for about a quarter of the set. Of the 29 provider-served tickets whose label says automatic response is right, 14 were answered, 9 were stopped by the router, and 6 were vetoed by the guardrail.
 
-### 7.3 Why the FCR is low
+### 7.4 Why the target was missed
 
-The diagnosis comes from the audit rows, not from guesswork. Gate 1 is not the problem: 71 of 80 tickets cleared the confidence floor of 0.75. Gate 2 is. Only 20 of 80 tickets reached a retrieval similarity of 0.65, and the median similarity across the set was about 0.60. Figure 3 shows the distribution against the threshold.
+Three causes, in order of size. First, **provider rate limits**: 25 tickets (31 per cent) were escalated only because the generation provider throttled, so the design never had a chance to answer them. A deployment with paid capacity would not see this, but my evidence for that is the token-limit messages in the run log, not a run on a paid key. Second, **the router**: 27 tickets were stopped by gates or vetoes. Eight more tickets are stopped than in run 2, consistent with the new intent veto, which is deliberate; the rest stop at the 0.40 similarity floor, and the distribution in Figure 3 shows many tickets still scoring below it. Third, **the guardrail**, which now vetoes only 9 tickets and is no longer the main constraint.
 
 **Figure 3. Distribution of top retrieval similarity across the 80 validation tickets.**
 
 {{FIG3}}
 
-The distribution has a telling shape: 19 of the 80 tickets scored between 0.60 and 0.65, just under the floor, and 30 scored between 0.55 and 0.65. The retrieval is correct far more often than the similarity suggests: precision at three is 92.5 per cent, so the right article is usually among the top three, but its cosine score is commonly in the range 0.45 to 0.64, below the floor. The embedding model scores colloquial customer wording against formal article text at lower absolute values than the 0.65 floor assumes. The floor was taken from the specification rather than fitted, and it is the single largest cause of the miss.
-
-The output guardrail is the second cause. Of the 19 tickets that cleared both gates and had an answer generated (the twentieth, VAL-0043, was a critical-urgency ticket blocked by the safety veto), 13 were then vetoed by the per-sentence support check, so only 6 were released. The check is deliberately strict, since a single unsupported sentence trips it, and it is the reason the system never sent an unsupported claim; but a strictness that rejects two answers in three does not meet the business goal either.
-
-Table 4 shows a sensitivity analysis I ran on the existing results. It counts how many tickets would clear both gates, before the guardrail, at different similarity floors, and how many of those are tickets whose label says auto-response was the right route. This is a diagnostic of the existing run, not a tuned result. It must not be read as an achieved FCR, because the guardrail rejects a large share of generated answers and I have not re-run the system at these floors.
-
-**Table 4. Tickets clearing both gates at alternative similarity floors (diagnostic only, not a result).**
-
-| Similarity floor | Clear both gates | Of which labelled auto-respond |
-|---|---|---|
-| 0.65 (current) | 20 | 13 |
-| 0.60 | 38 | 24 |
-| 0.55 | 48 | 31 |
-| 0.50 | 56 | 35 |
-| 0.45 | 59 | 38 |
-
-The table supports a specific conclusion. Lowering the floor would bring many more correctly labelled tickets into the answerable pool, but would also admit tickets labelled for escalation, and the guardrail's behaviour at higher volume is unknown. It tells me where to look first; it does not tell me the achievable FCR.
-
-### 7.4 Calibration, accuracy and latency
-
-Classification accuracy of 82.5 per cent and ECE of 0.070 are reasonable. Calibration is the metric that the dual-gate design relies on, because the 0.75 confidence floor only makes sense if confidence tracks accuracy, and with ECE at 0.070 it does. With 80 tickets and 10 bins, the estimate is noisy; 65 of the 80 tickets fall in the top confidence bin and several other bins hold only a handful of tickets, so I would not claim the second decimal place.
-
-The offline fallback tickets are a clear exception. For the five tickets that fell back to the offline tier when providers were rate-limited, accuracy was 20 per cent and ECE was 0.30, compared with 86.7 per cent and 0.076 for the 75 provider-served tickets. This is by design, because the offline tier escalates rather than guesses, but it shows that the headline accuracy depends on provider availability.
-
-Latency missed the target. P95 was 7.7 seconds and the maximum was 10.5 seconds. A large part of this is retry back-off against the free-tier token-per-minute limit of the hosted models; the logs show repeated rate-limit responses during the run. Because I could not isolate provider latency from queueing, I treat the figure as an upper bound that overstates a paid deployment, but the 3-second budget was missed in this configuration and I do not have evidence that it would be met in another.
-
 ### 7.5 Error analysis
 
-**The six released answers.** Four of the six answered tickets whose label says auto-response is right (deployment failure, two billing questions and an API integration question). Two were wrong-route: VAL-0037 and VAL-0066, both titled "Question about backup regions" and both labelled `data_residency` with an expected route of escalate. The classifier was correct about the intent. The failure is that data location was not on the router's hard-veto list, although Daniel Okonkwo named it in discovery as a category where "the consequence is a compliance problem" and nothing automated should answer. The knowledge base has no article for these tickets (their expected document list is empty), so the system answered from loosely related passages that happened to score 0.66 and 0.68 against the floor. This is the clearest example in the run of a similarity floor that is both too high for most tickets and too permissive for the wrong ones, because similarity measures textual closeness and not whether the article actually answers the question.
+**Answers sent for tickets labelled escalate.** In run 3, five of nineteen released answers were for tickets whose label says escalate: two `rollback_request` and three `performance_degradation` tickets. None was a must-not ticket and none was a data-residency ticket. In run 1 the two wrong-route answers were both data-residency tickets, and the intent veto removed that failure. A wrong-route rate of 26 per cent among answers sent is too high for a customer-facing system, and it is the main reason I would not enable automatic sending without a human review stage. Rollback and performance tickets are labelled escalate when they need engineering diagnosis; the router has no signal for that apart from the intent label and similarity score.
 
-**Misclassifications.** The classifier mislabelled 14 of 80 tickets. The errors cluster between neighbouring labels rather than across unrelated ones: `api_usage_question` was predicted as `configuration_help` twice and as `database_issue` and `integration_help` once each; `account_access` and `authentication_failure` were swapped; and four tickets were sent to `unclear_request`, which is the safe default and therefore the least harmful error. Because the confidence floor was cleared by 71 of 80 tickets, most of these errors were still escalated by the similarity gate, which is a useful, if accidental, second line of defence.
+**Misclassifications.** The classifier mislabelled 12 of 80 tickets. Errors fall between neighbouring labels (`api_usage_question` against `configuration_help` and `integration_help`; `account_access` against `authentication_failure`), and several fall to `unclear_request`, which is now a forced-escalation intent and therefore the least harmful error.
 
-**Retrieval versus routing.** Precision at three is 92.5 per cent, but the routing decision uses the single top score. A ticket can therefore have the right article in its top three and still be escalated because the top-1 cosine value is 0.62. Using the rank of the expected article, or a re-ranker, instead of the raw score would address this directly, and I list it among the next steps.
+**Retrieval versus routing.** Retrieval precision at three is 92.5 per cent but routing uses only the top-1 score, so a correct article ranked first with a cosine score of 0.38 is still stopped. A re-ranker or a rank-based test would address this directly.
 
 ### 7.6 Limits of what I measured
 
-Four limits apply. First, the sample is 80 tickets, so a single ticket moves FCR by 1.25 percentage points. Second, my FCR definition counts only automatically resolved tickets. A real FCR also includes tickets a human resolves on first contact, so my metric understates the operational effect, and as noted in Section 3.2 the 65 per cent target exceeds the 60 per cent of validation tickets whose labels mark them as suitable for auto-response. Third, correctness of the *content* of the six released answers was not independently graded against the reference responses, only the route and citation checks were applied. Fourth, two of the six released answers were for tickets whose labels say they should have been escalated, a wrong-route rate of two in six among answers sent (both data-residency tickets, Section 7.5), and 2 of the 32 tickets labelled for escalation overall. That is the most important quality finding for a customer-facing system, and with only six answers I cannot say whether it would persist at a lower floor.
+Six limits apply. First, the sample is 80 tickets, so one ticket moves FCR by 1.25 percentage points. Second, the validation set informed one of my choices, as described in Section 7.2, so the figures are optimistic. Third, the data are templated: the v1 repository found that 77.5 per cent of validation bodies appear verbatim in the development set, so performance on a truly new population is likely to be lower than any figure here. Fourth, my FCR counts only automatic resolutions, and the 65 per cent target is above the 60 per cent of validation tickets that are labelled suitable for automation. Fifth, I did not grade the content of released answers against the reference responses; the groundedness evidence is a model judge on development drafts. Sixth, latency and fallback counts are confounded by free-tier limits, so they say little about the design and a lot about how I tested it.
 
 ---
 
@@ -277,12 +279,12 @@ Four limits apply. First, the sample is 80 tickets, so a single ticket moves FCR
 |---|---|---|---|---|---|
 | R-01 | Prompt injection through ticket text | High | Ticket body sandboxed in XML delimiters with escaping; routing decided by code, not by the model. | Unit tests on sandboxing and routing. | Low |
 | R-02 | Personal data or credentials leaked | High | Luhn-validated card, key, email, phone and token redaction on input; output PII scan. | Unit tests; dashboard scenario 6 shows a redacted card and key. Validation set contained no detected PII, so no field evidence. | Low |
-| R-03 | Unsupported or hallucinated answer sent | High | Citation-membership and per-sentence support check; failures escalate. | 13 drafts suppressed on validation. Wrong-route answers still occurred (2 of 6). | Medium |
-| R-04 | Provider outage or rate limit | Medium | Three-tier cascade; offline tier escalates only. | Five tickets fell back and were escalated; no crash. | Low |
+| R-03 | Unsupported or hallucinated answer sent | High | Prompt requires extractive answers; citation-membership and per-sentence support check; failures escalate. | 9 drafts suppressed in run 3. A model judge found 64% of sampled development drafts fully supported under the final prompt. 5 of 19 sent answers were wrong-route. | Medium |
+| R-04 | Provider outage or rate limit | Medium | Three-tier cascade; offline tier escalates only. | 25 tickets fell back in run 3 and 50 in run 4; none crashed and every one was escalated, but automation yield collapses. | **High** |
 | R-05 | Audit trail altered | Medium | Append-only table; triggers abort `UPDATE` and `DELETE`. | Tamper test in the dashboard and `test_audit_log`. | Low |
-| R-06 | Over-escalation defeats the purpose | High | None adequate yet. | 92.5% escalation on validation. | **High** |
+| R-06 | Over-escalation defeats the purpose | High | Floor lowered to 0.40; prompt and guard tuned on development data. | 76.3% escalation in run 3 (31% of the set from provider fallback). | **High** |
 | R-07 | Unequal service across plans or language fluency | Medium | Not addressed in code. | No per-segment analysis performed. | Unknown |
-| R-08 | Automation of a category that discovery said must stay human (data location) | High | Hard-veto list covers refunds, legal, deletion, human-agent requests and security. Data residency is **not** on it. | Two data-residency tickets were auto-answered on validation. | **High** |
+| R-08 | Automation of a category that discovery said must stay human (data location) | High | Intent veto now forces `data_residency`, compliance, security, feature and unclear tickets to a person. | No data-residency ticket answered in run 3 (two were in run 1). | Medium |
 
 R-06 is a risk that the project itself created, and R-07 is a gap. I list them because the register would otherwise suggest that every hazard is controlled.
 
@@ -290,21 +292,21 @@ R-06 is a risk that the project itself created, and R-07 is a gap. I list them b
 
 The pack records customer tier, region, channel and language fluency. Sofia Restrepo identified non-native English speakers as the group with the worst satisfaction, and Ravi Menon warned that a widening gap between plans would surface at renewal. I computed a descriptive breakdown of the validation run by segment (Table 6). It is a preliminary look and not an audit: every cell is small, and a single ticket moves a rate by several percentage points.
 
-**Table 6. Validation outcomes by segment (n = 80). Descriptive only.**
+**Table 6. Validation outcomes by segment (n = 80), final configuration. Descriptive only.**
 
 | Segment | Tickets | Auto-resolved | Intent correct |
 |---|---|---|---|
-| Fluent English | 61 | 4 (6.6%) | 52 (85.2%) |
-| Non-fluent English | 19 | 2 (10.5%) | 14 (73.7%) |
-| Standard plan | 42 | 3 (7.1%) | 34 (81.0%) |
-| Business plan | 30 | 2 (6.7%) | 26 (86.7%) |
-| Enterprise plan | 8 | 1 (12.5%) | 6 (75.0%) |
-| Email | 31 | 3 (9.7%) | 26 (83.9%) |
-| Chat | 22 | 1 (4.5%) | 17 (77.3%) |
-| Docs comment | 16 | 0 (0.0%) | 13 (81.3%) |
-| Forum | 11 | 2 (18.2%) | 10 (90.9%) |
+| Fluent English | 61 | 17 (27.9%) | 53 (86.9%) |
+| Non-fluent English | 19 | 2 (10.5%) | 15 (78.9%) |
+| Standard plan | 42 | 11 (26.2%) | 35 (83.3%) |
+| Business plan | 30 | 6 (20.0%) | 27 (90.0%) |
+| Enterprise plan | 8 | 2 (25.0%) | 6 (75.0%) |
+| Email | 31 | 9 (29.0%) | 28 (90.3%) |
+| Chat | 22 | 3 (13.6%) | 18 (81.8%) |
+| Docs comment | 16 | 3 (18.8%) | 12 (75.0%) |
+| Forum | 11 | 4 (36.4%) | 10 (90.9%) |
 
-Auto-resolution rates show no pattern, but with six auto-resolved tickets in total they could not. The one signal worth flagging is classification accuracy: 73.7 per cent for non-fluent customers (14 of 19) against 85.2 per cent for fluent ones (52 of 61). That is the direction Sofia predicted, since a ticket that is harder to read is harder to classify, but a 19-ticket sample has a 95 per cent interval of roughly plus or minus 20 points, so I cannot confirm it. The honest conclusion is that the fairness audit is incomplete. It needs to be run on the 500 development tickets, with intent accuracy by fluency, and repeated after any threshold change, since a stricter gate that escalates more would fall on whichever segment has lower similarity scores.
+The signal worth flagging is that non-fluent customers were auto-resolved at 10.5 per cent against 27.9 per cent for fluent customers, and their intent accuracy was 78.9 per cent against 86.9 per cent. That is the direction Sofia predicted, since a ticket that is harder to read is harder to classify and answer. With 19 non-fluent tickets, and with provider fallbacks falling at random across segments, I cannot confirm it: a 19-ticket sample has a 95 per cent interval of roughly plus or minus 20 points. The honest conclusion is that the fairness audit is incomplete. It needs to be run on the 500 development tickets, with intent accuracy by fluency, and repeated after any threshold change, since a stricter gate that escalates more would fall on whichever segment has lower similarity scores.
 
 ### 8.3 Decision logging
 
@@ -320,11 +322,15 @@ If a wrong answer is reported, the on-call engineer looks up the ticket in the a
 
 The revision log in `03_Workbooks/Stage_5_PRD_Revision_Log.docx` records four substantive changes from version 1 to version 2 of the requirements.
 
-FR-04 changed from a blended score of $0.5c + 0.5s_{ret} \ge 0.70$ to independent gates ($c \ge 0.75$ and $s_{ret} \ge 0.65$ and urgency not critical). The trigger was a build-time observation that strong retrieval could mask a misclassified intent. The change improved auditability and the safety property, and, as Section 7 shows, it moved the weakness onto the similarity threshold.
+FR-04 changed from a blended score of $0.5c + 0.5s_{ret} \ge 0.70$ to independent gates ($c \ge 0.75$ and $s_{ret} \ge 0.40$ and urgency not critical, with $s_{ret}$ first set at 0.65). The trigger was a build-time observation that strong retrieval could mask a misclassified intent. The change improved auditability and the safety property, and, as Section 7 shows, it moved the weakness onto the similarity threshold.
 
 NFR-02 changed from a token-bucket rate limiter to a configurable delay plus full-jitter back-off on 429 responses, because the bucket was brittle against free-tier limits. FR-06 changed so that the offline fallback no longer drafts template answers; it escalates and generates no text, so unverified output cannot reach a customer. NFR-04 changed from an external vector database service to an embedded ChromaDB store, which removed a network dependency and reduced start-up time.
 
-**What the revision taught me, and what it did not catch.** The revision pushed the design toward safety, and the evaluation confirms that this direction was right: zero must-not tickets were automated and nothing crashed. It did not test whether the thresholds could deliver the business goal. I treated the specification's 0.75 and 0.65 as given and revised the *structure* of the routing rather than checking the *values* against the development set. A version-3 revision is warranted and is recorded in Section 10: it would add a threshold-calibration requirement, a requirement for a per-sentence guardrail with a documented false-veto budget, and a requirement that FCR be reported both as automatic resolution and as total first-contact resolution.
+**What the revision taught me, and what it did not catch.** The revision pushed the design toward safety, and the evaluation confirms that this direction was right: zero must-not tickets were automated and nothing crashed. It did not test whether the thresholds could deliver the business goal. I treated the specification's 0.75 and 0.65 as given and revised the *structure* of the routing rather than checking the *values* against the development set. The four post-evaluation changes below are the start of a version-3 revision; it should also add a threshold-calibration requirement fitted on development data, a documented false-veto budget for the guardrail, and a requirement that FCR be reported both as automatic resolution and as total first-contact resolution.
+
+---
+
+**Changes made after evaluation (a version-3 revision).** The evaluation led to four changes, recorded in Section 7.2: the retrieval-similarity floor in FR-04 was lowered from 0.65 to 0.40; FR-02 gained an intent-based hard veto for compliance, feature, security, unclear and data-residency tickets; the generation prompt was made extractive (FR-05); and the guardrail's word match was stemmed (FR-06). FCR is now defined in the requirements as automatic resolution only, with total first-contact resolution to be reported separately.
 
 ---
 
@@ -332,21 +338,19 @@ NFR-02 changed from a token-bucket rate limiter to a configurable delay plus ful
 
 ### 10.1 What was delivered
 
-A working, tested, auditable orchestrator that processes a full ticket set unattended from a clean checkout and never sends anything unsafe by the checks I ran. It redacts personal data, classifies with calibrated confidence, retrieves the right article most of the time, escalates with context, and keeps an immutable decision record. It ships with a live dashboard that demonstrates six scenarios and a tamper test, and with a harness that accepts any input and output path.
+A working, tested, auditable orchestrator that processes a full ticket set unattended from a clean checkout and never sent a must-not-automate ticket to a customer in any run. It redacts personal data, classifies with calibrated confidence, retrieves the right article most of the time, escalates with context, and keeps an immutable decision record. It ships with a live dashboard that demonstrates six scenarios and a tamper test, a harness that accepts any input and output path, a run register of every validation run, and the development-set experiments behind each tuning choice.
 
 ### 10.2 What was not delivered
 
-The FCR target. At 7.5 per cent against 65 per cent, the system in its current configuration does not meet the client's central business goal, and it also missed the latency budget. I also did not complete the fairness audit, and I did not grade the content of released answers against the reference responses.
+The FCR target. At 23.8 per cent against 65 per cent in the final configuration (34.5 per cent among provider-served tickets), the system does not meet the client's central business goal. It also missed the latency budget, and one in four released answers was for a ticket that should have gone to a person. I did not complete the fairness audit on the development set, and I did not grade the content of released answers against the reference responses.
 
 ### 10.3 What I would do next
 
-In order. First, fit the retrieval floor and the confidence floor on the 500 development tickets, plot the trade-off between answered volume and wrong-route rate, and choose the operating point with the client, then re-run the validation set once. Second, evaluate the guardrail on the development set to measure its false-veto rate, and consider replacing the sentence-level check with a more tolerant entailment test and keeping the hard checks for citations and personal data. Third, add query rewriting or a hybrid lexical-plus-dense retrieval to close the vocabulary gap that the similarity scores reveal. Fourth, add data location to the hard-veto list, as discovery required, and run the segment fairness audit on the development set. Fifth, measure latency on a paid-tier key to separate provider limits from pipeline cost. Finally, report FCR both ways, as automatic resolution and as total first-contact resolution including human-handled tickets, so that the target is compared like with like.
+In order. First, rerun the final configuration on a key with enough capacity to avoid fallbacks, with a longer retry window on rate-limit responses, so the design is measured rather than the quota. Second, fit the similarity and confidence floors on the 500 development tickets with a plotted trade-off between answered volume and wrong-route rate, choose the operating point with the client, and rerun the validation set once. Third, address the 26 per cent wrong-route rate: add a signal for tickets that need engineering diagnosis, or require human review before sending rollback and performance answers. Fourth, replace the top-1 similarity test with a rank-based or re-ranked test. Fifth, run the segment fairness audit on the development set. Finally, report FCR both ways, as automatic resolution and as total first-contact resolution including human-handled tickets, so that the target is compared like with like.
 
 ### 10.4 Uncertainty
 
-I am confident in the safety behaviour and the calibration, because they are tested and measured. I am uncertain about the achievable FCR, because the sensitivity analysis is a diagnostic and not a re-run, and about latency, because the free tier confounds it. I am not able to say how the system will score on the hidden set, which was drawn from the same population; I would expect a similar shape, a safe system with low automation yield, but I have not tested that.
-
----
+I am confident in the safety behaviour and the calibration, because they are tested and measured. I am uncertain about the achievable FCR, because the final configuration has one usable run and a quarter of it was lost to rate limits. I am uncertain about generalisation, because the data are templated and the validation set informed one of my choices. I cannot say how the system will score on the hidden set; I would expect a similar shape, a safe system with modest automation yield, but I have not tested that.
 
 ## Declaration of AI tool use
 
@@ -366,16 +370,16 @@ I used AI coding assistants, principally Claude Code from Anthropic, throughout 
 | A6 verifiable citations | `tests/unit/test_generation.py` |
 | A7 active guardrails | `tests/unit/test_guardrails.py` |
 | A8 decision log | `tests/integration/test_audit_log.py`; triggers |
-| A9 unattended run | Harness run of 8 November 2026, `evaluation/validation_report.json` |
+| A9 unattended run | Four harness runs on 8 November 2026; final configuration in `evaluation/validation_report.json`, others in `evaluation/results/` |
 | A10 automated metrics | `evaluation/metrics.py`; JSON and CSV |
 | A11 fault tolerance | `tests/integration/test_resilience.py` |
-| A12 single-command tests | `pytest tests/` passes 132 tests in 45 s |
+| A12 single-command tests | `pytest tests/` passes 136 tests |
 
 Passing the acceptance criteria concerns whether the software runs and is tested. It does not imply that the FCR target was met.
 
-## Appendix B. Raw validation report
+## Appendix B. Raw validation reports
 
-The complete output of the 8 November 2026 run is committed as `evaluation/validation_report.json`, with the tabular summary in `evaluation/metrics_summary.csv`. Run identifier `batch_1794111144_160e8b`.
+The final configuration (run 3) is committed as `evaluation/validation_report.json` with the tabular summary in `evaluation/metrics_summary.csv`. Runs 1, 2 and 4 are in `evaluation/results/`. The development-set drafts, model-judge verdicts and scripts behind the prompt and guardrail choices are in `evaluation/experiments/`.
 
 ## Appendix C. Effort summary
 
@@ -383,4 +387,4 @@ Hours by stage are recorded in `03_Workbooks/AmlanAcharya_Effort_Log.docx`: disc
 
 ## Appendix D. Prompt register
 
-The classification and generation system prompts are exported as versioned files in `prompts/` and are the runtime source in `src/generation/prompts.py`. The design rationale is in `03_Workbooks/Stage_3_Prompt_Library.docx`.
+The classification system prompt (v1) and the generation system prompts (v1 and the extractive v2 now in use) are exported as versioned files in `prompts/` and are the runtime source in `src/generation/prompts.py`. The design rationale is in `03_Workbooks/Stage_3_Prompt_Library.docx`.

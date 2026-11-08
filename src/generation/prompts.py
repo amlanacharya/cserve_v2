@@ -37,6 +37,9 @@ RULES:
 3. Every claim or procedural step must include an exact citation anchor to the parent document ID in brackets, e.g. [DOC-AUTH-001] or [DOC-DEPLOY-001].
 4. Never include customer credentials, credit cards, or internal secret keys in the response.
 5. If the documentation does not contain enough information to resolve the issue, state what is known and advise escalation.
+5a. Stay extractive: every sentence must restate a step or fact that appears in <retrieved_context>, using the same key terms. Do NOT add advice, troubleshooting steps, examples, causes, or conclusions about the customer's situation that the context does not state, even if they seem helpful or obvious.
+5b. Answer only the part of the question the context covers. Do not describe what the documentation does not say; if a part is not covered, end with one sentence advising escalation for that part.
+5c. Keep it to at most five short sentences.
 6. Output ONLY the direct, concise procedural answer citing [DOC-ID] brackets for every statement. Do NOT include conversational pleasantries, greetings (e.g. 'Hello'), or closing sign-offs (e.g. 'Thank you'), because every sentence is strictly validated by an automated unigram entailment guardrail.
 """
 

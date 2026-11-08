@@ -13,6 +13,11 @@ STOP_WORDS = frozenset(
 )
 
 
+def _stem(word: str) -> str:
+    """Crude stem (5-character prefix for words of 6+ letters) so 'rotate' matches 'rotation'."""
+    return word[:5] if len(word) >= 6 else word
+
+
 def check_hallucination_and_entailment(
     draft_response: str,
     citations: list[str],
@@ -45,7 +50,7 @@ def check_hallucination_and_entailment(
     # Build unigram vocabulary from cited context chunks
     relevant_chunks = [d for d in retrieved_docs if d.doc_id in citations]
     context_text = " ".join(d.text for d in relevant_chunks).lower()
-    context_unigrams = {w for w in WORD_REGEX.findall(context_text) if w not in STOP_WORDS}
+    context_unigrams = {_stem(w) for w in WORD_REGEX.findall(context_text) if w not in STOP_WORDS}
 
     if not context_unigrams:
         violations.append("EMPTY_RETRIEVED_CONTEXT")
@@ -56,7 +61,7 @@ def check_hallucination_and_entailment(
 
     for sentence in sentences:
         words = [w.lower() for w in WORD_REGEX.findall(sentence)]
-        words = [w for w in words if w not in STOP_WORDS and not DOC_ID_TOKEN.match(w)]
+        words = [_stem(w) for w in words if w not in STOP_WORDS and not DOC_ID_TOKEN.match(w)]
         if not words:
             continue
         ratio = sum(1 for w in words if w in context_unigrams) / len(words)

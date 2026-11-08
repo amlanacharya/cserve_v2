@@ -29,6 +29,20 @@ SAFETY_VETO_PATTERN = re.compile(
 )
 
 
+# Intents that must always go to a person. The first four are escalate-labelled in 100% of the 500
+# development tickets; data_residency is added because discovery (tier-two interview) named data
+# location as a compliance risk where nothing automated should answer.
+VETO_INTENTS = frozenset(
+    {"compliance_request", "feature_request", "security_incident", "unclear_request", "data_residency"}
+)
+
+
+def _apply_intent_veto(result: dict[str, Any]) -> dict[str, Any]:
+    if result.get("inferred_intent") in VETO_INTENTS and not result.get("must_not_auto_respond"):
+        result = {**result, "must_not_auto_respond": True}
+    return result
+
+
 def extract_json_from_llm_output(text: str) -> dict[str, Any]:
     """Strips Markdown fences and parses JSON payload."""
     cleaned = text.strip()
@@ -55,7 +69,7 @@ def classify_ticket(ticket: CanonicalTicket) -> dict[str, Any]:
 
     cached_res = cache.get(ticket_hash)
     if cached_res is not None:
-        return cached_res
+        return _apply_intent_veto(cached_res)
 
     # 1. Evaluate Safety Veto
     combined_text = f"{ticket.subject or ''} {ticket.body}"
@@ -106,5 +120,5 @@ def classify_ticket(ticket: CanonicalTicket) -> dict[str, Any]:
     # Offline fail-safe results must never be replayed after providers recover
     if provider_used != OFFLINE_PROVIDER:
         cache.set(ticket_hash, result)
-    return result
+    return _apply_intent_veto(result)
 

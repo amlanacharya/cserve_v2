@@ -25,7 +25,7 @@ INK, BLUE, RED, GREY, GREEN = "#0f172a", "#1d4ed8", "#dc2626", "#94a3b8", "#0596
 def fig_outcomes() -> str:
     v = REPORT["volume"]
     parts = [("Auto-resolved", v["auto_resolved"], GREEN), ("Guardrail veto", v["escalated_guardrail"], "#d97706"),
-             ("Router escalation", v["escalated_router"], BLUE)]
+             ("Router escalation", v["escalated_router"], BLUE), ("Provider fallback", v["escalated_error"], GREY)]
     total = v["total_tickets"]
     x, w_total, y = 20, 640, 40
     out = [f'<svg viewBox="0 0 700 150" class="fig" role="img" aria-label="Outcome of 80 validation tickets">']
@@ -36,7 +36,7 @@ def fig_outcomes() -> str:
         out.append(f'<text x="{x:.1f}" y="{y + 62}" fill="{INK}" font-size="12">{label}</text>')
         x += w
     out.append(f'<text x="20" y="25" fill="{INK}" font-size="13" font-weight="700">80 validation tickets: where each ended up</text>')
-    out.append(f'<text x="20" y="130" fill="{GREY}" font-size="11">Source: evaluation/validation_report.json (run batch_1794111144_160e8b)</text>')
+    out.append(f'<text x="20" y="130" fill="{GREY}" font-size="11">Source: evaluation/validation_report.json (final configuration, run 3)</text>')
     out.append("</svg>")
     return "".join(out)
 
@@ -53,7 +53,7 @@ def fig_similarity(db: str) -> str:
     out = ['<svg viewBox="0 0 640 215" class="fig" role="img" aria-label="Retrieval similarity histogram">']
     for i, c in enumerate(bins):
         bh = h * c / mx
-        col = GREEN if i >= 13 else BLUE  # bin 13 starts at 0.65
+        col = GREEN if i >= 8 else BLUE  # bin 8 starts at 0.40
         out.append(f'<rect x="{x0 + i * bw}" y="{y0 - bh:.1f}" width="{bw - 3}" height="{bh:.1f}" fill="{col}"/>')
         if c:
             out.append(f'<text x="{x0 + i * bw + (bw - 3) / 2}" y="{y0 - bh - 4:.1f}" font-size="10" text-anchor="middle" fill="{INK}">{c}</text>')
@@ -61,9 +61,12 @@ def fig_similarity(db: str) -> str:
             out.append(f'<text x="{x0 + i * bw}" y="{y0 + 14}" font-size="10" text-anchor="middle" fill="{INK}">{i / nb:.1f}</text>')
     tx = x0 + 13 * bw - 1.5
     out.append(f'<line x1="{tx}" y1="34" x2="{tx}" y2="{y0}" stroke="{RED}" stroke-width="2" stroke-dasharray="5 3"/>')
-    out.append(f'<text x="{tx - 6}" y="46" font-size="12" fill="{RED}" font-weight="700" text-anchor="end">Gate 2 floor 0.65</text>')
+    out.append(f'<text x="{tx - 6}" y="46" font-size="12" fill="{RED}" font-weight="700" text-anchor="end">original floor 0.65</text>')
+    t4 = x0 + 8 * bw - 1.5
+    out.append(f'<line x1="{t4}" y1="34" x2="{t4}" y2="{y0}" stroke="{INK}" stroke-width="2"/>')
+    out.append(f'<text x="{t4 + 6}" y="46" font-size="12" fill="{INK}" font-weight="700">current floor 0.40</text>')
     out.append(f'<text x="{x0}" y="22" font-size="13" font-weight="700" fill="{INK}">Top retrieval similarity per ticket (0.05 bins, lower edge)</text>')
-    out.append(f'<text x="{x0}" y="205" font-size="11" fill="{GREY}">n = {len(vals)}; green bars clear Gate 2, blue bars do not</text>')
+    out.append(f'<text x="{x0}" y="205" font-size="11" fill="{GREY}">n = {len(vals)}; green bars clear the current 0.40 floor</text>')
     out.append("</svg>")
     return "".join(out)
 

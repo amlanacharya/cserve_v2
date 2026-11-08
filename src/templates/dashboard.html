@@ -899,7 +899,7 @@
       </button>
       <button class="btn-scenario" id="btn-sc-gate2" onclick="loadScenario('gate2')" title="Hotkey [4]">
         <kbd>4</kbd>
-        <span>GATE 2 (Low Sim &lt; 0.65)</span>
+        <span>GATE 2 (Low Sim &lt; 0.40)</span>
       </button>
       <button class="btn-scenario" id="btn-sc-guard" onclick="loadScenario('guard')" title="Hotkey [5]">
         <kbd>5</kbd>
@@ -951,7 +951,7 @@
             </optgroup>
             <optgroup label="📉 ESCALATED_ROUTER Candidates (Gate 1 or Gate 2 Failure)">
               <option value="gate_conf">DEMO-GATE1-01: Ambiguous Error Code 5599 (Low Confidence c &lt; 0.75)</option>
-              <option value="gate_sim">DEMO-GATE2-01: Out-of-Domain Kitchen/Baking (Low Similarity s &lt; 0.65)</option>
+              <option value="gate_sim">DEMO-GATE2-01: Out-of-Domain Kitchen/Baking (Low Similarity s &lt; 0.40)</option>
             </optgroup>
             <optgroup label="⚠️ ESCALATED_GUARDRAIL Candidates (Lexical Entailment &amp; Hallucination)">
               <option value="guard_yaml">DEMO-GUARD-01: Missing YAML Deployment Port/Path (Entailment Guardrail Veto)
@@ -1052,7 +1052,7 @@
             <div class="banner-left">
               <div class="banner-status" id="banner-status">AUTO_RESOLVED</div>
               <div class="banner-reason" id="banner-reason">Independent orthogonal dual gates satisfied (confidence &ge;
-                0.75, similarity &ge; 0.65)</div>
+                0.75, similarity &ge; 0.40)</div>
             </div>
             <div class="banner-metrics">
               <div class="bm-item">
@@ -1086,7 +1086,7 @@
             <div class="gate-box">
               <div class="gate-header">
                 <span class="gate-title">Gate 2: Chroma Similarity</span>
-                <span class="badge badge-green" id="gate2-badge">PASS (&ge; 0.65)</span>
+                <span class="badge badge-green" id="gate2-badge">PASS (&ge; 0.40)</span>
               </div>
               <div class="gate-stat" id="gate2-val">0.66 / 1.00</div>
               <div class="gate-meter">
@@ -1467,8 +1467,8 @@
 
       document.getElementById('gate2-val').textContent = `${sim.toFixed(2)} / 1.00`;
       document.getElementById('gate2-bar').style.width = `${Math.min(100, Math.max(0, sim * 100))}%`;
-      document.getElementById('gate2-badge').className = sim >= 0.65 ? 'badge badge-green' : 'badge badge-red';
-      document.getElementById('gate2-badge').textContent = sim >= 0.65 ? 'PASS (≥ 0.65)' : 'FAIL (< 0.65)';
+      document.getElementById('gate2-badge').className = sim >= 0.40 ? 'badge badge-green' : 'badge badge-red';
+      document.getElementById('gate2-badge').textContent = sim >= 0.40 ? 'PASS (≥ 0.40)' : 'FAIL (< 0.40)';
 
       const isVeto = urgency === 'CRITICAL' || (data.routing_reason && data.routing_reason.includes('CRITICAL'));
       document.getElementById('gate3-val').textContent = isVeto ? 'SAFETY VETO TRIPPED' : 'NO VETO MATCH';

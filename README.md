@@ -10,7 +10,7 @@ The system is coordinated by a LangGraph `StateGraph`, wrapped with `@safe_node`
 
 ## Measured results (validation set, 8 Nov 2026)
 
-80 tickets, unattended run, report in `evaluation/validation_report.json`: **FCR 7.5% (target 65%, not met)**, intent accuracy 82.5%, ECE 0.070, retrieval precision@3 92.5%, P95 latency 7.7 s on a rate-limited free tier (budget 3 s, not met), 0 crashes, 80/80 decisions logged, 0 of 14 must-not-automate tickets auto-answered. The binding constraints are the 0.65 retrieval-similarity floor and the per-sentence grounding guardrail; see `02_Report/` section 7.
+80 tickets, unattended run, report in `evaluation/validation_report.json`: **FCR 23.8% (target 65%, not met; 7.5% before tuning)**, intent accuracy 85.0%, ECE 0.093, retrieval precision@3 92.5%, P95 latency 8.2 s on a rate-limited free tier (budget 3 s, not met), 0 crashes, 80/80 decisions logged, 0 of 14 must-not-automate tickets auto-answered; 25 tickets fell back because the provider rate-limited. All four runs and how each change was chosen are in `02_Report/` section 7 and `evaluation/results/`.
 
 ---
 

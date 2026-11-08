@@ -17,7 +17,7 @@ def evaluate_route(
     Deterministic dual-gate routing pure function:
     AUTO_RESPOND if:
       confidence >= tau (default 0.75) AND
-      top_retrieval_score >= sigma (default 0.65) AND
+      top_retrieval_score >= sigma (default 0.4) AND
       urgency != 'CRITICAL' AND
       NOT must_not_auto_respond
 

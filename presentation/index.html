@@ -261,17 +261,17 @@
 
           <div class="metrics-dashboard">
             <div class="metric-box box-warning">
-              <div class="m-val">7.5%</div>
+              <div class="m-val">23.8%</div>
               <div class="m-title">First-Contact Resolution</div>
-              <div class="m-sub">Target: &ge; 65.0% &mdash; NOT MET (6 of 80)</div>
+              <div class="m-sub">Target: &ge; 65.0% &mdash; NOT MET (19 of 80; 7.5% before tuning)</div>
             </div>
             <div class="metric-box box-primary">
-              <div class="m-val">0.070</div>
+              <div class="m-val">0.093</div>
               <div class="m-title">Expected Calibration Error</div>
               <div class="m-sub">Target: &le; 0.15 across 10 bins</div>
             </div>
             <div class="metric-box box-info">
-              <div class="m-val">7.7 s</div>
+              <div class="m-val">8.2 s</div>
               <div class="m-title">P95 Response Latency</div>
               <div class="m-sub">Budget: &le; 3 s &mdash; NOT MET (free-tier rate limits)</div>
             </div>
@@ -288,19 +288,19 @@
                 <span class="icon">&#x1F4CA;</span>
                 <h3>Expected Calibration Error (ECE) Analysis</h3>
               </div>
-              <p>Model confidence is partitioned into 10 equal bins ($[0.0-0.1], \dots, [0.9-1.0]$). The weighted gap between accuracy and confidence is 0.070 (small sample, so noisy), confirming the classifier is well-calibrated and neither overconfident nor timid.</p>
+              <p>Model confidence is partitioned into 10 equal bins ($[0.0-0.1], \dots, [0.9-1.0]$). The weighted gap between accuracy and confidence is 0.093 (small sample, so noisy), confirming the classifier is well-calibrated and neither overconfident nor timid.</p>
             </div>
             <div class="card">
               <div class="card-header">
                 <span class="icon">&#x1F6E1;</span>
                 <h3>Active Guardrail Trip Rate</h3>
               </div>
-              <p>13 generated answers were vetoed by the per-sentence grounding check and escalated with diagnostics. No ticket labelled must-not-automate was answered. Two data-residency tickets were auto-answered in error.</p>
+              <p>9 generated answers were vetoed by the grounding check; 25 tickets fell back when the provider rate-limited. No must-not ticket was answered and data residency now always goes to a person. 5 of 19 answers sent were wrong-route.</p>
             </div>
           </div>
         </div>
         <div class="speaker-notes">
-          [14:00 - 17:00] METRICS: Be candid. FCR was 7.5% (6 of 80) against the 65% target. ECE was 0.070 and accuracy 82.5%, so calibration held. P95 latency was 7.7 s on a rate-limited free tier, above the 3 s budget. Cause: only 20 of 80 tickets reached the 0.65 similarity floor and the guardrail vetoed 13 of 19 generated answers.
+          [14:00 - 17:00] METRICS: Be candid. FCR was 23.8% (19 of 80; 7.5% before tuning) against the 65% target. ECE was 0.093 and accuracy 85%, so calibration held. P95 latency was 8.2 s on a rate-limited free tier, above the 3 s budget. A quarter of the set fell back because of provider rate limits.
         </div>
       </section>
 

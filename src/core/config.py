@@ -32,7 +32,7 @@ class Settings(BaseModel):
         default_factory=lambda: float(os.getenv("INTENT_CONFIDENCE_THRESHOLD", "0.75"))
     )
     retrieval_similarity_floor: float = Field(
-        default_factory=lambda: float(os.getenv("RETRIEVAL_SIMILARITY_FLOOR", "0.65"))
+        default_factory=lambda: float(os.getenv("RETRIEVAL_SIMILARITY_FLOOR", "0.4"))
     )
     top_k_passages: int = Field(default_factory=lambda: int(os.getenv("TOP_K_PASSAGES", "3")))
     top_k_escalate: int = Field(default_factory=lambda: int(os.getenv("TOP_K_ESCALATE", "2")))

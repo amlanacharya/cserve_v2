@@ -28,12 +28,12 @@ def test_routing_truth_table():
     # 3. Gate 2 failure: low retrieval similarity -> ESCALATE
     action, reason = evaluate_route(
         confidence=0.85,
-        top_retrieval_score=0.55,
+        top_retrieval_score=0.35,
         urgency="MEDIUM",
         must_not_auto_respond=False,
     )
     assert action == "ESCALATE"
-    assert "s_ret=0.55<0.65" in reason
+    assert "s_ret=0.35<0.4" in reason
 
     # 4. Gate 3 failure: CRITICAL urgency -> ESCALATE
     action, reason = evaluate_route(
@@ -58,13 +58,13 @@ def test_routing_truth_table():
     # 6. Multiple failures: names all failed conditions
     action, reason = evaluate_route(
         confidence=0.50,
-        top_retrieval_score=0.40,
+        top_retrieval_score=0.30,
         urgency="CRITICAL",
         must_not_auto_respond=True,
     )
     assert action == "ESCALATE"
     assert "c=0.50<0.75" in reason
-    assert "s_ret=0.40<0.65" in reason
+    assert "s_ret=0.30<0.4" in reason
     assert "urgency==CRITICAL" in reason
     assert "must_not_auto_respond==True" in reason
 
