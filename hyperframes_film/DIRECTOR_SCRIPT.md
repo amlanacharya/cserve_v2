@@ -16,7 +16,7 @@
 [7:30 - 10:00| 150s]  ACT IV:  Bounded Semantic Chunking (87 Chunks) & ChromaDB Dense Retrieval
 [10:00-12:30| 150s]  ACT V:   Independent Orthogonal Dual Gates & 3-Tier Cascade Sandboxing
 [12:30-16:00| 210s]  ACT VI:  HERO PRODUCT DEMO — Live Pytest, FastAPI Endpoints, SQLite & Batch CLI
-[16:00-18:00| 120s]  ACT VII: Empirical Results (68.3% FCR, 0.074 ECE), Benchmarks & Retrospective
+[16:00-18:00| 120s]  ACT VII: Measured Results (7.5% FCR, ECE 0.070), Honest Retrospective
 TOTAL: Exactly 1,080 Seconds (18 Minutes)
 ```
 
@@ -27,13 +27,13 @@ TOTAL: Exactly 1,080 Seconds (18 Minutes)
 *   **Timeline:** `data-start="0"` &bull; `data-duration="150"`
 *   **Visual Setup:** High-contrast crisis dashboard. The left card flashes the red metric `42.0% FCR` against the executive target `65.0%`. Center pane displays the 500-ticket exploratory data analysis (EDA) chart. Right pane animates the stakeholder conflict matrix.
 *   **Voiceover Narration:**
-    > *(0:00 – 0:35)* "Welcome. In enterprise cloud infrastructure, customer support operations represent both the front line of brand trust and the largest operational cost sink. At CloudServe, our customer support metrics revealed an acute crisis: First-Contact Resolution was severely depressed at 42%, while the average ticket resolution latency hovered at 18.4 hours. Leadership initially assumed this was a staffing and search engine failure, proposing to unleash unconstrained generative bots to deflect 75% of incoming traffic."
+    > *(0:00 – 0:35)* "Welcome. CloudServe's support function is under strain. More than five hundred tickets arrive each week across four channels, replies take eight to twelve hours against a two-hour agreement, and first-contact resolution is about 42 per cent against a 65 per cent target. The request was for a chatbot. I want to show you why that was the wrong frame."
     > 
-    > *(0:35 – 1:15)* "However, deep stakeholder discovery revealed a critical web of misaligned perceptions. Marcus, our Head of Support, believed agents were simply working too slowly. Front-line Tier 1 agents like Sofia reported racing against rigid 10-minute queue SLA clocks, frantically searching fragmented wikis with brittle keyword search. Meanwhile, senior Tier 2 infrastructure leads like Daniel were burning 40% of their engineering capacity repeatedly answering the same basic questions: API key rotations, provisioning rollbacks, and account lockouts—all because escalated tickets arrived completely stripped of diagnostic context."
+    > *(0:35 – 1:15)* "I interviewed five people. Marcus, the Head of Support, wants the easy tickets answered so his team can do the hard ones, and above all does not want a confidently wrong answer sent. Sofia, a tier-one agent, says seven in ten tickets repeat and that the documentation is fine, she just cannot find things in it. Daniel, in tier two, says escalations arrive with no context. Ines, who writes the knowledge base, says search matches titles, not customer wording."
     > 
-    > *(1:15 – 1:55)* "To settle these disagreements empirically, we ingested and analyzed 500 production development tickets across four channels: Chat, Email, Forum, and Documentation Comments. The data shattered the initial assumptions: 73.2% of all customer inquiries already had comprehensive, verified answers in CloudServe's 29 knowledge base articles! The failure wasn't missing documentation. The failure was vocabulary mismatch. When a developer submitted 'my container keeps dying during health check', naive keyword search looked for the word 'dying'—failing completely against the formal engineering title 'Configuring Container Liveness Probes'."
+    > *(1:15 – 1:55)* "I tested those claims on the 500 development tickets. 71.4 per cent are answerable from the 29 articles, which supports Sofia: the answers exist. Historical FCR is 43.8 per cent and mean resolution time about seven hours. Daniel thought half of escalations were avoidable; the data says 92 of 281, about a third. So the disagreement is real, but smaller than he thought."
     > 
-    > *(1:55 – 2:30)* "Furthermore, the data proved that 51.4% of all escalated tickets were completely preventable. The system did not need more documentation or unconstrained LLMs spewing creative hallucinations. It needed an architecturally rigorous, deterministic support orchestrator capable of dense semantic understanding, strict dual-gate routing, active guardrail protection, and immutable auditability. Let's look at the system architecture."
+    > *(1:55 – 2:30)* "Put together, this is a findability and handoff problem, not a content problem. It calls for retrieval before generation, a safe human route for anything uncertain, escalations that carry their working, and a decision record a compliance reviewer can read. Let's look at the architecture."
 
 ---
 
@@ -97,39 +97,37 @@ TOTAL: Exactly 1,080 Seconds (18 Minutes)
 
 ---
 
-## Act VI: HERO LIVE PRODUCT DEMONSTRATION (12:30 – 16:00 / 210s)
+## Act VI: LIVE PRODUCT DEMONSTRATION (12:30 – 16:00 / 210s)
 
 *   **Timeline:** `data-start="750"` &bull; `data-duration="210"`
-*   **Visual Setup:** Full-screen high-definition terminal simulation (`#act6-terminal`). The terminal header displays tabs: `01_TEST_SUITE`, `02_FASTAPI_RUN`, `03_SQLITE_AUDIT`, `04_BATCH_EVALUATION`. Real commands type out, followed by live execution and colored output.
-*   **Voiceover Narration:**
-    > *(12:30 – 13:10) [Terminal Tab 1: Pytest Suite Execution]*  
-    > "Let's observe the software running live in the terminal. First, we execute our full test suite using `pytest tests/ -v`. Notice that the test suite covers 35 distinct unit and integration tests across all architectural domains: audit log immutability triggers, LangGraph orchestrator state paths, FastAPI health and ticket endpoints, `@safe_node` fault containment, offline provider fallback, concurrent SQLite WAL writers, PII and Luhn credit card scrubbers, H2/H3 chunking bounds, ChromaDB dense retrieval, and dual-gate truth tables. All 35 tests pass cleanly in under 10 seconds!"
+*   **Visual Setup:** Unedited screen recording of the live dashboard (`assets/in_app_demo.mp4`, produced by `scripts/record_in_app_demo.js`) inside a browser frame, with a sidebar that highlights the scenario on screen. Sidebar timings come from `assets/in_app_demo.marks.json`.
+*   **Voiceover Narration (say what the screen shows; the model's exact scores vary a little run to run):**
+    > *(12:30 – 12:55) [Overview, then scenario 1]* "This is the running system, not a mock-up. I click scenario one, an API export question. The pipeline normalises the ticket, classifies the intent with confidence 0.90, retrieves the export article with similarity 0.66, and both gates pass. The answer is grounded and cites `[DOC-API-002]` after each step."
     > 
-    > *(13:10 – 14:00) [Terminal Tab 2: Live FastAPI Ingestion & Auto-Response vs Safety Veto]*  
-    > "Now, we start the FastAPI server on port 8000 and submit two contrasting customer tickets via curl. First, ticket DEMO-001 arrives via chat asking: 'How do I rotate my production API key without downtime?' The pipeline normalizes the text, classifies the intent as `account_security` with 0.92 confidence, retrieves article `AUTH-002` with 0.89 similarity, satisfies both orthogonal gates, and generates a precise, grounded auto-response citing `[AUTH-002]` with step-by-step instructions in 1.4 seconds."
+    > *(12:55 – 13:20) [Scenario 2: safety veto]* "Scenario two is a production database outage. Classification confidence is high, but urgency is critical, so the safety veto fires. The router escalates and builds an enriched packet for Tier 2 with the failed gates and the top candidate articles."
     > 
-    > "Next, ticket DEMO-002 arrives via email with high emotion: 'Production down database corrupt! Our entire service is dead!' Watch what happens: The safety veto engine instantly intercepts the keywords 'production down' and 'database corrupt'. Urgency is escalated to CRITICAL, and `must_not_auto_respond` is forced to True. The orchestrator immediately diverts the ticket to `ESCALATED_SAFETY_VETO`, assembling an enriched `EscalationPacket` with top documentation links and routing it straight to Tier 2 infrastructure on-call."
+    > *(13:20 – 14:10) [Scenarios 3 and 4: router escalations]* "Scenarios three and four are the two gates failing. In both, retrieval similarity (0.33 and 0.14) is below the 0.65 floor, so the ticket escalates with an explicit reason string. The gates are independent: scenario three passes the confidence gate at 0.75 and still fails on similarity. I will come back to this gate in the results, because it is the one that limited our FCR."
     > 
-    > *(14:00 – 14:50) [Terminal Tab 3: SQLite WAL Persistence & Database Immutability]*  
-    > "Now let's examine the audit persistence layer in `data/decision_log.db`. Every single processing event is logged to an append-only SQLite database operating in WAL mode. To guarantee compliance under regulatory audits, we enforced database-level SQLite triggers that explicitly abort any `UPDATE` or `DELETE` SQL statement."
+    > *(14:10 – 14:40) [Scenario 5: guardrail veto]* "Scenario five clears both gates, so a draft is generated, but the grounding check finds a sentence the retrieved text does not support and suppresses the whole answer. This is the guardrail doing its job, and it fired on thirteen of the nineteen generated answers in the validation run."
     > 
-    > "Notice as we execute a rogue SQL query: `UPDATE decision_log SET final_status = 'AUTO_RESPONDED' WHERE ticket_id = 'DEMO-002'`. The database engine immediately aborts with: `RuntimeError: Execution failed: UPDATE operation not permitted on immutable table 'decision_log'`. Tamper-evident, zero-overhead compliance."
+    > *(14:40 – 15:10) [Scenario 6: PII ticket]* "Scenario six contains a card number and an API key. Both are redacted on ingest, before any model sees them. This ticket then escalates at the similarity gate. Redaction and routing are separate controls."
     > 
-    > *(14:50 – 16:00) [Terminal Tab 4: Batch Evaluation Harness & Live Progress]*  
-    > "Finally, we trigger our unattended batch evaluation harness: `python -m evaluation.harness --input 05_Datasets/development_tickets.json --output evaluation/results/evaluation_report.json --delay 1.5`. The harness processes the evaluation batch with an animated progress bar, calculating intent accuracy, FCR, P50/P90/P95 latencies, and 10-bin Expected Calibration Error. The entire run executes unattended without a single uncaught exception. Let's analyze the benchmark results."
+    > *(15:10 – 15:35) [Tamper test]* "Now the tamper test. The dashboard attempts an UPDATE against the decision log. The SQLite trigger `decision_log_no_update` aborts it, so the audit trail is append-only at the database level."
+    > 
+    > *(15:35 – 16:00) [Audit log]* "Scrolling down, every decision from this session is in the audit table with intent, confidence, similarity, disposition and routing reason. The unattended run over the full validation set, shown next in the results, writes to the same table."
 
 ---
 
 ## Act VII: Empirical Benchmark Results, Calibration & Retrospective (16:00 – 18:00 / 120s)
 
 *   **Timeline:** `data-start="960"` &bull; `data-duration="120"`
-*   **Visual Setup:** Benchmark summary dashboard. High-contrast comparison bar charts: FCR baseline 42% vs Achieved 68.3%. Reliability diagram illustrating 10-bin ECE curve (0.074). Key retrospective pillars and architectural takeaways.
+*   **Visual Setup:** Benchmark summary dashboard. Three metric cards (FCR 7.5% not met, ECE 0.070 met, P95 7,673 ms not met) and takeaways on why the gates were too strict.
 *   **Voiceover Narration:**
-    > *(16:00 – 16:40)* "The empirical evaluation results demonstrate a resounding success across every key operational and technical metric. First-Contact Resolution increased from our baseline of 42.0% to **68.3%**—comfortably exceeding our executive target of 65.0%. Crucially, this deflection was achieved without compromising customer safety: 100% of production-critical inquiries and PII-flagged tickets were escalated to human engineers with zero false-positive auto-responses."
+    > *(16:00 – 16:40)* "Here is what the measured results actually say, on the 80-ticket validation set. First-Contact Resolution is **7.5 per cent**: six of eighty tickets were answered automatically. The target was 65, so we missed it, and I want to be clear about that rather than soften it. What I can tell you is why. Our second gate requires retrieval similarity of at least 0.65, and only twenty of eighty tickets reached it; nineteen more landed between 0.60 and 0.65. Then our output guardrail vetoed thirteen of the nineteen answers that did get generated."
     > 
-    > *(16:40 – 17:20)* "On the calibration front, our 10-bin Expected Calibration Error registered at **0.074**, well within our target boundary of $\le 0.15$. The reliability diagram reveals that the model's confidence scores correspond directly to empirical accuracy: when the classifier reports 80% confidence, it is accurate 80% of the time. This calibration is what makes our dual-gate threshold of $c \ge 0.75$ so robust. Furthermore, P95 latency clocked in at 2,150 milliseconds, well below our 3,000 millisecond budget."
+    > *(16:40 – 17:20)* "What held up: calibration. Expected Calibration Error is **0.070**, inside our 0.15 target, with intent accuracy at 82.5 per cent and retrieval precision at three of 92.5 per cent. No ticket labelled must-not-automate was answered, nothing crashed, and all eighty decisions are in the audit log. What did not: P95 latency was 7.7 seconds against a 3-second budget, partly free-tier rate limits, and two data-residency tickets were answered automatically, which our discovery interviews said must never happen."
     > 
-    > *(17:20 – 18:00)* "In retrospective, the primary engineering lesson of this project is that in real-world AI systems, software architecture and safety gating outweigh raw model scale. By coupling a decoupled modular monolith with deterministic orthogonal dual gates, bounded semantic retrieval, and fail-safe offline escalation, we delivered a production-grade support orchestrator that satisfies all 12 Acceptance Criteria with zero compromise on safety. Thank you."
+    > *(17:20 – 18:00)* "The lesson is that safety gating and calibration worked, and the thresholds were the weak point. I took 0.65 from the specification instead of fitting it to the development tickets. Next I would fit both floors on the 500 development tickets, add data location to the hard-veto list, test a more tolerant grounding check, and report FCR two ways. Thank you."
 
 ---
 

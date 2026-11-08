@@ -1,6 +1,6 @@
-# CloudServe Support Orchestrator
+# CloudServe Support Orchestrator Blueprint
 
-## Overview
+## System Overview
 
 The **CloudServe Support Orchestrator** is a decoupled, modular monolith processing pipeline designed for enterprise customer support operations. It ingests multi-channel customer inquiries, classifies intent and urgency, retrieves grounded knowledge base passages from 29 curated documentation articles using ChromaDB, routes tickets through independent dual gates (intent confidence and retrieval similarity), synthesizes citation-backed answers with strict source anchors (`[DOC-ID]`), and enforces active safety guardrails against PII leakage and hallucination.
 
@@ -8,11 +8,17 @@ The system is coordinated by a LangGraph `StateGraph`, wrapped with `@safe_node`
 
 ---
 
+## Measured results (validation set, 8 Nov 2026)
+
+80 tickets, unattended run, report in `evaluation/validation_report.json`: **FCR 7.5% (target 65%, not met)**, intent accuracy 82.5%, ECE 0.070, retrieval precision@3 92.5%, P95 latency 7.7 s on a rate-limited free tier (budget 3 s, not met), 0 crashes, 80/80 decisions logged, 0 of 14 must-not-automate tickets auto-answered. The binding constraints are the 0.65 retrieval-similarity floor and the per-sentence grounding guardrail; see `02_Report/` section 7.
+
+---
+
 ## Acceptance Criteria Traceability (A1–A12)
 
 | Criterion | Requirement Description | Architectural Component / File |
 |---|---|---|
-| **A1** | Clean checkout launch | `06_Configuration/requirements.txt`, `pyproject.toml`, and `.env.example`. |
+| **A1** | Clean checkout launch | `requirements.txt`, `pyproject.toml`, and `.env.example`. |
 | **A2** | 4-channel ingestion | `src/ingest/normalizer.py` parsing `email`, `chat`, `docs_comment`, and `forum`. |
 | **A3** | Intent & urgency classification | `src/classify/classifier.py` emitting intent, intent alternatives, urgency, and confidence. |
 | **A4** | Grounded retrieval | `src/retrieval/store.py` querying ChromaDB over header-chunked `05_Datasets/documentation.json`. |
@@ -27,81 +33,60 @@ The system is coordinated by a LangGraph `StateGraph`, wrapped with `@safe_node`
 
 ---
 
-## Quickstart & Installation (A1)
+## Subdirectories & System Boundaries
 
-### 1. Environment Setup
-```bash
-# Create and activate Python 3.11 virtual environment using uv
-uv venv --python 3.11
-.venv\Scripts\activate   # On Windows
-# source .venv/bin/activate # On Unix/macOS
-
-# Install dependencies and editable package
-uv pip install -r 06_Configuration/requirements.txt
-uv pip install -e .
-```
-
-### 2. Configure Environment Variables
-Copy `.env.example` to `.env` and provide your API keys:
-```bash
-cp .env.example .env
-```
-Key variables:
-- `GROQ_API_KEY`: Groq API key.
-- `GEMINI_API_KEY`: Google Gemini API key.
-- `INTENT_CONFIDENCE_THRESHOLD`: Minimum confidence $\tau = 0.75$.
-- `RETRIEVAL_SIMILARITY_FLOOR`: Minimum similarity $\sigma = 0.65$.
+- **[src](./src/README.md)**: Core application subsystem and REST service. Houses the FastAPI web server (`src/api.py`), pipeline state graph, and nine specialized domain packages:
+  - **[src/audit](./src/audit/README.md)**: Append-only SQLite WAL store enforcing database-level immutability triggers.
+  - **[src/classify](./src/classify/README.md)**: 21-intent classification taxonomy, confidence estimation, and non-negotiable safety veto checks.
+  - **[src/core](./src/core/README.md)**: Canonical Pydantic schemas, runtime literal types, threshold configurations, and PII regexes.
+  - **[src/generation](./src/generation/README.md)**: Resilient 3-tier LLM cascade and XML-sandboxed prompt generation.
+  - **[src/guardrails](./src/guardrails/README.md)**: Post-generation PII scrubbing and lexical unigram entailment verification.
+  - **[src/ingest](./src/ingest/README.md)**: Multi-channel normalizer standardizing tickets into `CanonicalTicket` instances.
+  - **[src/orchestrator](./src/orchestrator/README.md)**: LangGraph state machine with `@safe_node` fault-tolerant containment.
+  - **[src/retrieval](./src/retrieval/README.md)**: Header-based Markdown document chunker and ChromaDB dense vector store.
+  - **[src/routing](./src/routing/README.md)**: Deterministic orthogonal dual-gate routing logic and human triage escalation packets.
+- **[evaluation](./evaluation/README.md)**: Unattended batch evaluation CLI (`evaluation/harness.py`) and quantitative metrics engine (`evaluation/metrics.py`) computing FCR rate, calibration error, and latency percentiles.
 
 ---
 
-## Running Verification Tests (A12)
+## Global Invariants
+
+- **Orthogonal Dual-Gate Routing**: Automated resolution (`AUTO_RESOLVED`) requires all four conditions: intent confidence $c \ge 0.75$, retrieval similarity $s_{\text{ret}} \ge 0.65$, urgency $\ne \text{"CRITICAL"}$, and `must_not_auto_respond == False`.
+- **Append-Only Audit Reconciliation**: 100% of processed tickets converge on `audit_node` and write to the SQLite `decision_log` table. SQLite database triggers unconditionally abort `UPDATE` and `DELETE` operations.
+- **Inbound & Outbound Safety Containment**: PII is scrubbed during ingestion and audited via `pii_redactions_count`. Generated drafts tripping guardrails ($< 50\%$ lexical unigram overlap, hallucinated citations, or leaked credentials) are suppressed and escalated.
+- **Degraded Execution Isolation**: Node exceptions caught by `@safe_node` mark `is_degraded = True`, append to `failed_nodes`, and route safely to `escalate_node` without terminating the host process.
+
+---
+
+## Global Side Effects
+
+- **SQLite WAL Storage**: Synchronous write-ahead log operations to `data/decision_log.db`.
+- **Vector Database**: Disk access and embedding index management at `data/chromadb` (`duckdb+parquet`).
+- **External Network Inference**: Outbound HTTPS requests to Groq (`api.groq.com`) and Google Gemini (`generativelanguage.googleapis.com`) API endpoints.
+
+---
+
+## System Verification
 
 Run the complete test suite across unit modules, integration flows, and resilience tests:
 ```bash
 pytest tests/ -v
 ```
 
-To run individual test stages:
+### Quickstart Verification Run
 ```bash
-# Day 1: Ingestion & PII Normalization (A2)
+# Verify ingestion & PII normalization
 pytest tests/unit/test_ingest.py -v
 
-# Day 2: Knowledge Base Chunking & Retrieval (A4)
+# Verify retrieval & ChromaDB chunking
 pytest tests/unit/test_retrieval.py -v
 
-# Day 3: Classification, Routing & SQLite Audit Logging (A3, A5, A8)
+# Verify classification, routing, and audit logging
 pytest tests/unit/test_classify.py tests/unit/test_routing.py tests/unit/test_audit.py -v
 
-# Day 4: Grounded Synthesis, Guardrails & Cascade (A6, A7, A11)
+# Verify generation & active guardrails
 pytest tests/unit/test_generation.py tests/unit/test_guardrails.py -v
 
-# Day 5: LangGraph Orchestration & Resilience (A8, A11)
+# Verify LangGraph orchestration & failure recovery
 pytest tests/integration/test_orchestrator.py tests/integration/test_resilience.py tests/integration/test_audit_log.py -v
 ```
-
----
-
-## Unattended Batch Evaluation CLI (A9 & A10)
-
-Execute unattended batch evaluation across the validation dataset:
-```bash
-python -m evaluation.harness --input 05_Datasets/validation_tickets.json --output evaluation/validation_report.json --delay 1.5
-```
-
-This generates:
-- `evaluation/validation_report.json`: Detailed hierarchical JSON report with volume, business, technical, and governance metrics.
-- `evaluation/metrics_summary.csv`: Tabular CSV metrics summary.
-- Appends reconciled rows to SQLite at `data/decision_log.db`.
-
----
-
-## Running the REST API Service
-
-Launch the FastAPI web service:
-```bash
-uvicorn src.api:app --host 0.0.0.0 --port 8000 --reload
-```
-
-Endpoints:
-- `GET /health`: Health check endpoint (`{"status": "ok"}`).
-- `POST /tickets/process`: Ingest and process a raw JSON ticket payload, returning `ProcessedTicketResult`.

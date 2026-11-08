@@ -257,28 +257,28 @@
       <section class="slide" id="slide-5" data-duration="180">
         <div class="slide-content">
           <div class="section-tag">STAGE 5 EVALUATION &bull; VALIDATION DATASET BENCHMARKS</div>
-          <h2 class="slide-title">Empirical Results Across 120 Production Inquiries</h2>
+          <h2 class="slide-title">Measured Results on the 80-Ticket Validation Set</h2>
 
           <div class="metrics-dashboard">
-            <div class="metric-box box-success">
-              <div class="m-val">68.3%</div>
+            <div class="metric-box box-warning">
+              <div class="m-val">7.5%</div>
               <div class="m-title">First-Contact Resolution</div>
-              <div class="m-sub">Target: &ge; 65.0% (Exceeded by +3.3%)</div>
+              <div class="m-sub">Target: &ge; 65.0% &mdash; NOT MET (6 of 80)</div>
             </div>
             <div class="metric-box box-primary">
-              <div class="m-val">0.074</div>
+              <div class="m-val">0.070</div>
               <div class="m-title">Expected Calibration Error</div>
               <div class="m-sub">Target: &le; 0.15 across 10 bins</div>
             </div>
             <div class="metric-box box-info">
-              <div class="m-val">870 ms</div>
+              <div class="m-val">7.7 s</div>
               <div class="m-title">P95 Response Latency</div>
-              <div class="m-sub">SLA: &le; 3,000 ms (&lt; 250 ms for escalations)</div>
+              <div class="m-sub">Budget: &le; 3 s &mdash; NOT MET (free-tier rate limits)</div>
             </div>
             <div class="metric-box box-warning">
-              <div class="m-val">100%</div>
+              <div class="m-val">80/80</div>
               <div class="m-title">Audit Reconciliation</div>
-              <div class="m-sub">120 of 120 tickets logged to SQLite WAL</div>
+              <div class="m-sub">80 of 80 tickets logged to SQLite WAL</div>
             </div>
           </div>
 
@@ -288,19 +288,19 @@
                 <span class="icon">&#x1F4CA;</span>
                 <h3>Expected Calibration Error (ECE) Analysis</h3>
               </div>
-              <p>Model confidence is partitioned into 10 equal bins ($[0.0-0.1], \dots, [0.9-1.0]$). The weighted gap between accuracy and confidence is 0.074, confirming the classifier is well-calibrated and neither overconfident nor timid.</p>
+              <p>Model confidence is partitioned into 10 equal bins ($[0.0-0.1], \dots, [0.9-1.0]$). The weighted gap between accuracy and confidence is 0.070 (small sample, so noisy), confirming the classifier is well-calibrated and neither overconfident nor timid.</p>
             </div>
             <div class="card">
               <div class="card-header">
                 <span class="icon">&#x1F6E1;</span>
                 <h3>Active Guardrail Trip Rate</h3>
               </div>
-              <p>4 tickets tripped safety guardrails (2 credit card/API leaks, 2 ungrounded claims). 100% were suppressed from customer transmission and diverted to senior engineers with diagnostics attached.</p>
+              <p>13 generated answers were vetoed by the per-sentence grounding check and escalated with diagnostics. No ticket labelled must-not-automate was answered. Two data-residency tickets were auto-answered in error.</p>
             </div>
           </div>
         </div>
         <div class="speaker-notes">
-          [14:00 - 17:00] METRICS: Review the numbers. FCR reached 68.3%, beating the 65% target. ECE was 0.074, proving well-calibrated confidence. P95 latency was 870 ms, well below the 3.0s SLA.
+          [14:00 - 17:00] METRICS: Be candid. FCR was 7.5% (6 of 80) against the 65% target. ECE was 0.070 and accuracy 82.5%, so calibration held. P95 latency was 7.7 s on a rate-limited free tier, above the 3 s budget. Cause: only 20 of 80 tickets reached the 0.65 similarity floor and the guardrail vetoed 13 of 19 generated answers.
         </div>
       </section>
 

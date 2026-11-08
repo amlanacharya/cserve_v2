@@ -116,35 +116,35 @@
     <div class="scene-header">
       <div class="category-pill" data-layout-ignore>Empirical Benchmarks &amp; Retrospective</div>
       <h1 class="scene-title">Empirical Benchmark Results, Calibration &amp; Retrospective</h1>
-      <p class="scene-subtitle">Achieving 68.3% FCR against 65.0% mandate, 0.074 10-bin Expected Calibration Error, and proving modular monolith architectural superiority.</p>
+      <p class="scene-subtitle">Measured on the 80-ticket validation set: 7.5% FCR against the 65% mandate, ECE 0.070 and P95 latency 7.7 s. Safety and calibration held; automation yield did not.</p>
     </div>
 
     <div class="grid-3">
       <div class="card" id="act7-card1">
         <div class="card-header">
           <div class="card-title">First-Contact Resolution</div>
-          <span class="badge badge-green">MANDATE: &ge; 65%</span>
+          <span class="badge badge-red">MANDATE: &ge; 65% &mdash; NOT MET</span>
         </div>
-        <div class="card-metric" style="color:#059669;">68.3%</div>
-        <div class="card-desc">Exceeds the 65.0% executive target, achieving a +26.3% absolute uplift over baseline with zero false-positive auto-responses on critical outages.</div>
+        <div class="card-metric" style="color:#dc2626;">7.5%</div>
+        <div class="card-desc">6 of 80 tickets auto-resolved. 61 stopped at the routing gates (only 20 of 80 reached retrieval similarity 0.65) and 13 more were vetoed by the output guardrail. Zero critical outages were auto-answered.</div>
       </div>
 
       <div class="card" id="act7-card2">
         <div class="card-header">
           <div class="card-title">Expected Calibration Error</div>
-          <span class="badge badge-blue">THRESHOLD: &le; 0.15</span>
+          <span class="badge badge-green">THRESHOLD: &le; 0.15 &mdash; MET</span>
         </div>
-        <div class="card-metric" style="color:#1d4ed8;">0.074</div>
-        <div class="card-desc">Evaluated across 10 empirical probability bins against &le; 0.15 threshold. Confidence scores reflect true Bayesian likelihood of accuracy.</div>
+        <div class="card-metric" style="color:#1d4ed8;">0.070</div>
+        <div class="card-desc">10-bin ECE on 80 tickets; intent accuracy 82.5% and retrieval precision@3 92.5%. Small sample, so the estimate is noisy.</div>
       </div>
 
       <div class="card" id="act7-card3">
         <div class="card-header">
           <div class="card-title">P95 Processing Latency</div>
-          <span class="badge badge-purple">BUDGET: &lt; 3,000 MS</span>
+          <span class="badge badge-red">BUDGET: &lt; 3,000 MS &mdash; NOT MET</span>
         </div>
-        <div class="card-metric" style="color:#7c3aed;">2,150 ms</div>
-        <div class="card-desc">Well within the 3,000 ms SLA budget. Early bypass for escalations processes in under 420 ms without invoking generative LLMs.</div>
+        <div class="card-metric" style="color:#7c3aed;">7,673 ms</div>
+        <div class="card-desc">P50 3.5 s. Measured on free-tier Groq with 429 back-off retries, so it overstates a paid deployment; the 3 s budget was still missed.</div>
       </div>
     </div>
 
@@ -155,21 +155,21 @@
           <span class="badge badge-blue">KEY FINDINGS</span>
         </div>
         <div style="font-size:16px; line-height:1.65; color:#334155;">
-          <div style="margin-bottom:10px;"><strong style="color:#0f172a;">1. Calibration Trumps Raw Accuracy:</strong> High model accuracy is dangerous without calibration. ECE 0.074 guarantees the router knows when it does not know.</div>
-          <div style="margin-bottom:10px;"><strong style="color:#0f172a;">2. Dual Gates Prevent Hallucination:</strong> Orthogonal gating completely eliminates the masking vulnerabilities of blended composite formulas.</div>
-          <div><strong style="color:#0f172a;">3. Safe Offline Escalation:</strong> When APIs fail, the orchestrator defaults to structured human escalation rather than spewing ungrounded guesses.</div>
+          <div style="margin-bottom:10px;"><strong style="color:#0f172a;">1. Calibration held:</strong> ECE 0.070 means confidence tracked accuracy, so the router escalated for the right reasons.</div>
+          <div style="margin-bottom:10px;"><strong style="color:#0f172a;">2. The gates were too strict:</strong> a 0.65 similarity floor and a per-sentence entailment guard together left 7.5% FCR. Next step: re-calibrate on the development set.</div>
+          <div><strong style="color:#0f172a;">3. Failure is safe:</strong> when the provider rate-limited, 5 tickets fell back offline and escalated rather than guessing.</div>
         </div>
       </div>
 
       <div class="card" id="act7-right">
         <div class="card-header">
           <div class="card-title">Project Completion &amp; Sign-Off</div>
-          <span class="badge badge-green">100% PRODUCTION READY</span>
+          <span class="badge badge-blue">GATE CLEARED &middot; TARGET NOT MET</span>
         </div>
         <div class="signoff-box" data-layout-ignore>
-          <div><span class="signoff-check">&check;</span><strong>Acceptance Criteria:</strong> 12 of 12 Criteria (A1 - A12) fully validated</div>
+          <div><span class="signoff-check">&check;</span><strong>Acceptance Criteria:</strong> A1&ndash;A12 implemented; FCR target (65%) not met on validation</div>
           <div><span class="signoff-check">&check;</span><strong>Test Suite:</strong> 132 automated tests passing cleanly</div>
-          <div><span class="signoff-check">&check;</span><strong>Audit Trail:</strong> 100% Ticket reconciliation with immutable SQLite triggers</div>
+          <div><span class="signoff-check">&check;</span><strong>Audit Trail:</strong> 80 of 80 tickets logged; append-only SQLite triggers</div>
           <div><span class="signoff-check">&check;</span><strong>Artifacts:</strong> Web Dashboard, Live Video MP4, Master Film, 10-Section Report</div>
         </div>
       </div>
