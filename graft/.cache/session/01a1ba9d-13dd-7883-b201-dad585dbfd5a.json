@@ -1,9 +1,0 @@
-{
-  "lastQuery": "Read-only opinion request, do not modify any files. Review the spec at C:UsersamlanDownloadscloudserveFDE_Capstone_CompleteCapstone_Pack.scratchdev500-benchmarkspec.md (it includes the tickets). Context: a capstone support-ticket orchestrator (Python, src/generation/cascade.py has the provider tiers; src/classify/cache.py keys the classification cache by ticket hash only). Give a short, ranked list (max 8 bullets) of the biggest risks or mistakes in the plan, especially: (1) statistical honesty of reporting a dev-set benchmark when floor/veto/prompt were tuned on dev data, (2) cache leakage between models, (3) spend-cap design, (4) whether rerunning validation a fifth time is defensible, (5) anything missing for a submission due in 10 days. Concrete, no preamble.",
-  "perAgentQuery": {},
-  "graftReads": 0,
-  "sourceReads": 0,
-  "savedTokens": 0,
-  "injectedPointers": [],
-  "nudges": 0
-}

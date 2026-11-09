@@ -79,3 +79,7 @@ docs/video_recording_script.md
 /goldfish_review_report.md
 /concepts_brief.md
 /design_draft.md
+
+# local tooling
+graft/
+.scratch/
