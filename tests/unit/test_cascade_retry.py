@@ -16,7 +16,7 @@ GEMINI_OK = {"candidates": [{"content": {"parts": [{"text": "gemini-ok"}]}}]}
 def _settings():
     return SimpleNamespace(
         groq_api_key="k", groq_base_url="https://groq.test/v1", groq_gen_model="g", groq_classify_model="g",
-        gemini_api_key="k", gemini_model="gm", provider_request_timeout=1.0,
+        gemini_api_key="k", gemini_model="gm", openrouter_api_key="", provider_order=["groq"], provider_strategy="failover", max_spend_usd=0, provider_request_timeout=1.0,
         provider_max_retries=1, backoff_base=1.0, backoff_cap=8.0,
     )
 

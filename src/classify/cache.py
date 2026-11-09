@@ -1,5 +1,6 @@
 import hashlib
 import json
+import os
 from pathlib import Path
 from typing import Any
 from src.core.models import CanonicalTicket
@@ -38,9 +39,28 @@ class ClassificationCache:
                 pass
 
 
-_GLOBAL_CACHE = ClassificationCache("data/cache/classification_cache.json")
+def _cache_file_from_env() -> str | None:
+    """CLASSIFICATION_CACHE_PATH overrides the cache file; the value 'none' keeps the cache in memory only."""
+    value = os.getenv("CLASSIFICATION_CACHE_PATH", "data/cache/classification_cache.json")
+    return None if value.strip().lower() == "none" else value
+
+
+_GLOBAL_CACHE = ClassificationCache(_cache_file_from_env())
 
 
 def get_classification_cache() -> ClassificationCache:
     return _GLOBAL_CACHE
 
+
+
+def cache_scope() -> str:
+    """Fingerprint of the active provider configuration, appended to cache keys so one model's answers
+    are never replayed for another. Empty when PROVIDER_ORDER is unset (legacy single-provider runs)."""
+    if not os.getenv("PROVIDER_ORDER"):
+        return ""
+    from src.core.config import get_settings
+
+    st = get_settings()
+    raw = "|".join([",".join(st.provider_order), st.provider_strategy, st.groq_classify_model,
+                    st.openrouter_model, st.gemini_model])
+    return ":" + hashlib.sha1(raw.encode()).hexdigest()[:10]

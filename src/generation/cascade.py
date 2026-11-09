@@ -1,3 +1,4 @@
+import itertools
 import json
 import logging
 import random
@@ -59,16 +60,14 @@ def _backoff_if_retryable(provider: str, exc: Exception, attempt: int, settings:
     return True
 
 
-def _call_groq(
-    settings: Any, system_prompt: str, user_prompt: str, temperature: float, task_type: str, model_override: str | None
+def _call_openai_compatible(
+    label: str, base_url: str, api_key: str, model: str, settings: Any, system_prompt: str, user_prompt: str,
+    temperature: float,
 ) -> str | None:
-    """Tier 1: Groq (OpenAI-compatible). Returns text, or None to cascade."""
-    groq_model = model_override or (
-        settings.groq_classify_model if task_type == "classification" else settings.groq_gen_model
-    )
+    """One OpenAI-compatible tier (Groq, OpenRouter). Returns text, or None to cascade."""
     client = OpenAI(
-        base_url=settings.groq_base_url,
-        api_key=settings.groq_api_key,
+        base_url=base_url,
+        api_key=api_key,
         timeout=settings.provider_request_timeout,
         max_retries=0,  # retry budget is ours (spec 1); no hidden SDK retries
     )
@@ -76,7 +75,7 @@ def _call_groq(
     for attempt in range(settings.provider_max_retries + 1):
         try:
             response = client.chat.completions.create(
-                model=groq_model,
+                model=model,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
@@ -86,19 +85,41 @@ def _call_groq(
             text = response.choices[0].message.content or ""
             return text.strip()
         except Exception as e:
-            if _backoff_if_retryable("Groq", e, attempt, settings):
+            if _backoff_if_retryable(label, e, attempt, settings):
                 continue
-            logger.warning(f"Groq Tier 1 failed: {e}. Cascading to Tier 2...")
+            logger.warning(f"{label} tier failed: {e}. Cascading to the next tier...")
             break
     return None
+
+
+def _call_groq(
+    settings: Any, system_prompt: str, user_prompt: str, temperature: float, task_type: str, model_override: str | None
+) -> str | None:
+    groq_model = model_override or (
+        settings.groq_classify_model if task_type == "classification" else settings.groq_gen_model
+    )
+    return _call_openai_compatible(
+        "Groq", settings.groq_base_url, settings.groq_api_key, groq_model, settings, system_prompt, user_prompt,
+        temperature,
+    )
+
+
+def _call_openrouter(
+    settings: Any, system_prompt: str, user_prompt: str, temperature: float, model_override: str | None
+) -> str | None:
+    # model_override is a Groq model id; OpenRouter uses its own configured model.
+    return _call_openai_compatible(
+        "OpenRouter", settings.openrouter_base_url, settings.openrouter_api_key, settings.openrouter_model,
+        settings, system_prompt, user_prompt, temperature,
+    )
 
 
 def _call_gemini(settings: Any, system_prompt: str, user_prompt: str, temperature: float) -> str | None:
     """Tier 2: Google Gemini. Returns text, or None to cascade."""
     gemini_url = (
         f"https://generativelanguage.googleapis.com/v1beta/models/{settings.gemini_model}:generateContent"
-        f"?key={settings.gemini_api_key}"
     )
+    gemini_headers = {"x-goog-api-key": settings.gemini_api_key}
     gemini_payload = {
         "contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
         "systemInstruction": {"parts": [{"text": system_prompt}]},
@@ -108,7 +129,7 @@ def _call_gemini(settings: Any, system_prompt: str, user_prompt: str, temperatur
     for attempt in range(settings.provider_max_retries + 1):
         try:
             with httpx.Client(timeout=settings.provider_request_timeout) as http_client:
-                resp = http_client.post(gemini_url, json=gemini_payload)
+                resp = http_client.post(gemini_url, json=gemini_payload, headers=gemini_headers)
                 resp.raise_for_status()
                 data = resp.json()
                 candidates = data.get("candidates", [])
@@ -119,7 +140,9 @@ def _call_gemini(settings: Any, system_prompt: str, user_prompt: str, temperatur
         except Exception as e:
             if _backoff_if_retryable("Gemini", e, attempt, settings):
                 continue
-            logger.warning(f"Gemini Tier 2 failed: {e}. Cascading to Tier 3...")
+            # never log the exception text: httpx includes the request URL, which carries the API key
+            status = getattr(getattr(e, "response", None), "status_code", None)
+            logger.warning(f"Gemini tier failed ({type(e).__name__}, status={status}). Cascading...")
             break
     return None
 
@@ -138,6 +161,55 @@ def _call_offline(user_prompt: str, task_type: str) -> tuple[str, str]:
     return "", "offline_mock"
 
 
+_rr_counter = itertools.count()
+_spend = {"calls": 0, "baseline": None}
+
+
+class SpendCapExceeded(BaseException):
+    """Aborts a whole run (not caught by per-ticket handlers) when MAX_SPEND_USD is exceeded."""
+
+
+def _check_spend(settings: Any) -> None:
+    """Every 20 OpenRouter calls, compare account usage with the first reading. Overshoot is bounded by
+    20 calls of the configured model (cents). Disabled when MAX_SPEND_USD is 0."""
+    if not settings.max_spend_usd or not settings.openrouter_api_key:
+        return
+    _spend["calls"] += 1
+    if _spend["baseline"] is not None and _spend["calls"] % 20:
+        return
+    try:
+        r = httpx.get(f"{settings.openrouter_base_url}/key", timeout=10,
+                      headers={"Authorization": f"Bearer {settings.openrouter_api_key}"})
+        used = float(r.json()["data"]["usage"])
+    except Exception:
+        return
+    if _spend["baseline"] is None:
+        _spend["baseline"] = used
+    elif used - _spend["baseline"] > settings.max_spend_usd:
+        raise SpendCapExceeded(f"OpenRouter spend {used - _spend['baseline']:.4f} USD exceeds cap {settings.max_spend_usd}")
+
+
+def _ordered_tiers(settings: Any, system_prompt: str, user_prompt: str, temperature: float, task_type: str,
+                   model_override: str | None) -> list[tuple[str, Any]]:
+    """Configured provider tiers in try-order. PROVIDER_ORDER (e.g. 'openrouter,groq,gemini') sets the
+    order; PROVIDER_STRATEGY=roundrobin rotates the starting tier per request so free-tier quotas of
+    several providers are used gently instead of exhausting the first one."""
+    _check_spend(settings)
+    available = {}
+    if settings.groq_api_key:
+        available["groq"] = lambda: _call_groq(settings, system_prompt, user_prompt, temperature, task_type, model_override)
+    if settings.openrouter_api_key:
+        available["openrouter"] = lambda: _call_openrouter(settings, system_prompt, user_prompt, temperature, model_override)
+    if settings.gemini_api_key:
+        available["gemini"] = lambda: _call_gemini(settings, system_prompt, user_prompt, temperature)
+    order = [n for n in settings.provider_order if n in available]
+    order += [n for n in available if n not in order]
+    if settings.provider_strategy == "roundrobin" and order:
+        k = next(_rr_counter) % len(order)
+        order = order[k:] + order[:k]
+    return [(n, available[n]) for n in order]
+
+
 def call_cascade(
     system_prompt: str,
     user_prompt: str,
@@ -154,14 +226,10 @@ def call_cascade(
     """
     settings = get_settings()
 
-    if settings.groq_api_key:
-        text = _call_groq(settings, system_prompt, user_prompt, temperature, task_type, model_override)
+    tiers = _ordered_tiers(settings, system_prompt, user_prompt, temperature, task_type, model_override)
+    for name, call in tiers:
+        text = call()
         if text is not None:
-            return text, "groq"
-
-    if settings.gemini_api_key:
-        text = _call_gemini(settings, system_prompt, user_prompt, temperature)
-        if text is not None:
-            return text, "gemini"
+            return text, name
 
     return _call_offline(user_prompt, task_type)

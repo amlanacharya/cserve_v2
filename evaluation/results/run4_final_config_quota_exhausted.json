@@ -1,0 +1,56 @@
+{
+  "run_id": "batch_1794117783_bf5a5d",
+  "volume": {
+    "total_tickets": 80,
+    "auto_resolved": 2,
+    "total_escalated": 78,
+    "escalated_router": 27,
+    "escalated_guardrail": 1,
+    "escalated_error": 50,
+    "auto_resolve_rate": 0.025,
+    "escalation_rate": 0.975
+  },
+  "business": {
+    "first_contact_resolution_rate": 0.025,
+    "fcr_target_met": false
+  },
+  "technical": {
+    "accuracy": 0.85,
+    "expected_calibration_error": 0.0928,
+    "retrieval_precision_at_k": 0.9245,
+    "retrieval_k": 3,
+    "retrieval_failed_count": 0,
+    "latency_p50_ms": 8203.6,
+    "latency_p90_ms": 8299.0,
+    "latency_p95_ms": 8368.9,
+    "latency_avg_ms": 5574.14,
+    "latency_max_ms": 14785.3
+  },
+  "governance": {
+    "guardrail_tripped_count": 1,
+    "guardrail_trip_rate": 0.0125,
+    "degraded_count": 0,
+    "degraded_rate": 0.0,
+    "provider_distribution": {
+      "offline_mock": 50,
+      "groq": 30
+    },
+    "pii_detected_count": 0,
+    "pii_detection_rate": 0.0,
+    "pii_inbound_redacted_count": 0,
+    "pii_output_violation_count": 0,
+    "pii_redactions_total": 0,
+    "hallucination_suppressed_count": 1,
+    "hallucination_suppression_rate": 0.0125,
+    "per_provider": {
+      "groq": {
+        "tickets": 80,
+        "accuracy": 0.85,
+        "expected_calibration_error": 0.0928,
+        "latency_avg_ms": 5574.14,
+        "latency_p95_ms": 8368.9,
+        "escalation_rate": 0.975
+      }
+    }
+  }
+}

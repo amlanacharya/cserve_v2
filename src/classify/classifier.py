@@ -2,7 +2,7 @@ import json
 import logging
 import re
 from typing import Any
-from src.classify.cache import compute_ticket_hash, get_classification_cache
+from src.classify.cache import cache_scope, compute_ticket_hash, get_classification_cache
 from src.core.models import CanonicalTicket
 from src.core.types import (
     ESCALATION_URGENCY,
@@ -64,7 +64,7 @@ def classify_ticket(ticket: CanonicalTicket) -> dict[str, Any]:
     Classifies a CanonicalTicket's intent, urgency, alternatives, and confidence.
     Enforces safety veto rules and utilizes the classification cache.
     """
-    ticket_hash = compute_ticket_hash(ticket)
+    ticket_hash = compute_ticket_hash(ticket) + cache_scope()
     cache = get_classification_cache()
 
     cached_res = cache.get(ticket_hash)

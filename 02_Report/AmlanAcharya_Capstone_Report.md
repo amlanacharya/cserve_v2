@@ -13,11 +13,11 @@
 
 CloudServe Solutions asked for a chatbot. Its support function receives more than five hundred tickets a week, replies in eight to twelve hours against a two-hour agreement, and resolves only about 42 per cent of tickets at first contact. The brief I was given sets a first-contact-resolution (FCR) target of 65 per cent. Discovery showed that the tickets were not hard. Agents and customers could not *find* answers that already existed in a 29-article knowledge base, and the tickets that were escalated reached tier two with no context. A chatbot would have answered the request and missed the problem.
 
-I built the CloudServe Support Orchestrator: a Python modular monolith, coordinated by a LangGraph state graph, that normalises tickets from four channels, redacts personal data, classifies intent and urgency with a confidence score, retrieves passages from the knowledge base, and applies two independent gates before deciding whether to answer automatically. Answers must carry `[DOC-ID]` citations and pass an output guardrail. Every other ticket is escalated with an enriched packet that carries the inferred intent, the failed gates and the two most relevant articles. Every decision is written to an append-only SQLite audit log protected by database triggers. The repository contains 132 automated tests, all of which pass, and an unattended evaluation harness that takes an input and an output path.
+I built the CloudServe Support Orchestrator: a Python modular monolith, coordinated by a LangGraph state graph, that normalises tickets from four channels, redacts personal data, classifies intent and urgency with a confidence score, retrieves passages from the knowledge base, and applies two independent gates before deciding whether to answer automatically. Answers must carry `[DOC-ID]` citations and pass an output guardrail. Every other ticket is escalated with an enriched packet that carries the inferred intent, the failed gates and the two most relevant articles. Every decision is written to an append-only SQLite audit log protected by database triggers. The repository contains 138 automated tests, all of which pass, and an unattended evaluation harness that takes an input and an output path.
 
 **What it achieved.** I ran the harness unattended over the 80 validation tickets on 8 November 2026 and the system processed and logged all 80 without a crash. In the final configuration, intent accuracy was 85.0 per cent, retrieval precision at three was 92.5 per cent, and expected calibration error (ECE) was 0.093, inside the 0.15 target. No ticket labelled `must_not_auto_respond` was answered automatically (0 of 14).
 
-**What it did not achieve, and the single most important caveat.** First-contact resolution, measured as the share of tickets answered automatically, was **23.8 per cent (19 of 80) against a 65 per cent target**. An earlier figure of 68.3 per cent in drafts of this report, the film and the video script was not supported by any run and has been withdrawn. The first honest run gave 7.5 per cent; lowering the retrieval-similarity floor from 0.65 to 0.40, forcing sensitive intents to a human, tightening the generation prompt and stemming the guardrail's word match raised it to 23.8 per cent. A quarter of the set (25 tickets) was escalated only because the free-tier model provider hit its rate limit, so the figure understates what the design could do on a paid key; among the 55 provider-served tickets the answer rate was 34.5 per cent, still well below target. Five of the 19 answers sent were for tickets labelled as needing a human, which is too high for automatic sending. P95 latency was 8.2 seconds against a 3-second budget, again confounded by rate limits. Section 7 reports all four validation runs, how each change was chosen, and that one choice (the similarity floor) was informed by validation results, so the figures are optimistic. The design is safe, calibrated and auditable, and it does not yet deliver the business outcome.
+**What it did not achieve, and the single most important caveat.** First-contact resolution, measured as the share of tickets answered automatically, was **23.8 per cent (19 of 80) against a 65 per cent target**. An earlier figure of 68.3 per cent in drafts of this report, the film and the video script was not supported by any run and has been withdrawn. The first honest run gave 7.5 per cent; lowering the retrieval-similarity floor from 0.65 to 0.40, forcing sensitive intents to a human, tightening the generation prompt and stemming the guardrail's word match raised it to 23.8 per cent. A quarter of the set (25 tickets) was escalated only because the free-tier model provider hit its rate limit, so the figure understates what the design could do on a paid key; among the 55 provider-served tickets the answer rate was 34.5 per cent, still well below target. Five of the 19 answers sent were for tickets labelled as needing a human, which is too high for automatic sending. P95 latency was 8.2 seconds against a 3-second budget, again confounded by rate limits. Section 7 reports all five validation runs, how each change was chosen, and that one choice (the similarity floor) was informed by validation results, so the figures are optimistic. A later run on three low-cost providers (run 5) removed the rate-limit fallbacks and gave 20.0 per cent (16 of 80), probably because the smaller models' answers failed the grounding check more often; a 500-ticket development benchmark gave 32.2 per cent on the low-cost models and 44.2 per cent on `gpt-oss-120b` (Section 7.7), against a ceiling of about 62 per cent set by the labels. The design is safe, calibrated and auditable, and it does not yet deliver the business outcome.
 
 ---
 
@@ -195,9 +195,9 @@ Two things. The retrieval-similarity threshold and the entailment guard are conf
 
 I evaluated the system with `python -m evaluation.harness --input 05_Datasets/validation_tickets.json --output <path> --delay <s>` against a fresh decision database each time. The input is the 80-ticket validation set supplied with the pack. I have not seen the 120-ticket hidden set and have not run against it: **the hidden set has been used zero times.** Metrics come from the audit database through `evaluation/metrics.py`, and every run's raw report is committed.
 
-The validation set was run four times on 8 November 2026, and I made system decisions after seeing the first three. That makes the validation figures optimistic as an estimate for unseen data, and the reader should weigh them accordingly. Table 3 lists every run and what changed between them.
+The validation set was run five times on 8 November 2026, and I made system decisions after seeing the first three. Run 5 changed the model providers, not the design, and was run to remove the rate-limit contamination of run 3; it does not restore the validation set to a held-out state. That makes the validation figures optimistic as an estimate for unseen data, and the reader should weigh them accordingly. Table 3 lists every run and what changed between them.
 
-**Table 3. Validation runs (n = 80), all on 8 November 2026.**
+**Table 3. Validation runs (n = 80), all on 8 November 2026.** Run 5 differs from run 3 in model provider only.
 
 | Run | Configuration | Auto-resolved (FCR) | Router | Guardrail | Provider fallback | Wrong-route answers |
 |---|---|---|---|---|---|---|
@@ -205,10 +205,13 @@ The validation set was run four times on 8 November 2026, and I made system deci
 | 2 | Floor lowered to 0.40 | 25 (31.3%) | 19 | 32 | 4 | 7 of 25 |
 | 3 | **Final:** floor 0.40, intent veto, prompt v2, stemmed guard, pacing 0.3 s | **19 (23.8%)** | 27 | 9 | **25** | 5 of 19 |
 | 4 | Same as run 3, pacing 2.5 s, after the daily token cap was hit | 2 (2.5%) | 27 | 1 | 50 | 0 of 2 |
+| 5 | Same design, three low-cost providers in rotation (OpenRouter and Groq `gpt-oss-20b`, Gemini `3.1-flash-lite`) | 16 (20.0%) | 27 | 37 | 0 | 3 of 16 |
 
 Run 4 is not informative about the design. The hosted provider's daily token allowance (200,000 tokens for the generation model) was exhausted by my own experiments, so 50 of 80 tickets fell back to the offline tier. I report it because omitting it would hide that the system's output depends on provider quota. Run 3 is also affected, more mildly: 25 tickets fell back after the per-minute token limit was hit at 0.3-second pacing. **I use run 3 as the headline result because it is the only run of the final configuration that reached most of the set**, and I state its rate-limit contamination wherever I quote it.
 
 The classifier output was cached between runs, so intent accuracy is identical in runs 2 to 4 (85.0 per cent). Run 1's 82.5 per cent differs only because five tickets had fallen back offline in that run and were classified by the provider afterwards. The accuracy gain from run 1 to run 2 therefore reflects provider availability, not any change I made.
+
+Run 5 is the first run of the final design with no provider fallback. It auto-resolved 16 tickets (20.0 per cent), none of them a must-not ticket, with 3 of 16 answers for tickets labelled escalate. The router stopped the same 27 tickets as run 3; the difference is the guardrail, which stopped 37 tickets against 9, most likely because the 20-billion-parameter models' drafts carried more unsupported sentences than the larger model's (I did not verify this with a judge). Latency P95 was 15.6 seconds because the free tiers queue requests. So removing the rate limits did not raise FCR; it showed that run 3's 23.8 per cent depended on the larger generation model, and that the rate-limit loss I described there was not the main constraint.
 
 ### 7.2 What I changed between runs, and how I chose it
 
@@ -222,6 +225,8 @@ Four changes separate run 1 from run 3. I report how each was chosen because one
 The draft files, judge verdicts and scripts are committed in `evaluation/experiments/` so that these choices can be re-examined.
 
 ### 7.3 Results of the final configuration
+
+Table 4 gives the full results of the final configuration, and Figure 2 shows where each ticket ended up.
 
 **Table 4. Final configuration (run 3), validation set, n = 80.**
 
@@ -267,11 +272,47 @@ Three causes, in order of size. First, **provider rate limits**: 25 tickets (31 
 
 Six limits apply. First, the sample is 80 tickets, so one ticket moves FCR by 1.25 percentage points. Second, the validation set informed one of my choices, as described in Section 7.2, so the figures are optimistic. Third, the data are templated: the v1 repository found that 77.5 per cent of validation bodies appear verbatim in the development set, so performance on a truly new population is likely to be lower than any figure here. Fourth, my FCR counts only automatic resolutions, and the 65 per cent target is above the 60 per cent of validation tickets that are labelled suitable for automation. Fifth, I did not grade the content of released answers against the reference responses; the groundedness evidence is a model judge on development drafts. Sixth, latency and fallback counts are confounded by free-tier limits, so they say little about the design and a lot about how I tested it.
 
+### 7.7 Development-set benchmark on three low-cost providers
+
+To measure the design on more than 80 tickets, I ran all 500 development tickets through the real pipeline on 8 November 2026. I chose the model first, with a bake-off on 20 development tickets stratified by intent: `openai/gpt-oss-120b` and `qwen/qwen3.7-flash` each classified 19 of 20 correctly, and `openai/gpt-oss-20b` and `google/gemini-2.5-flash-lite` 18 of 20. I used the cheapest, `gpt-oss-20b`, on OpenRouter and Groq, with `gemini-3.1-flash-lite` on Google, and rotated the first provider per request so that no free-tier quota was exhausted. A spend cap of two dollars was checked every 20 requests; the whole 500-ticket run cost about three cents. Table 7 gives the result.
+
+**Table 7. Development benchmark (n = 500), economy configuration.**
+
+| Metric | Result |
+|---|---|
+| Tickets processed and logged | 500 of 500; 0 provider fallbacks, 0 crashes |
+| First-contact resolution (auto-resolved share) | 32.2% (161 of 500); target 65%, not met |
+| Stopped by router / output guardrail | 130 / 209 (guardrail trip rate 41.8%) |
+| Intent accuracy / ECE | 86.4% / 0.056 |
+| Retrieval precision at 3 | 86.7% |
+| Latency P50 / P95 | 3.4 s / 13.2 s |
+| `must_not_auto_respond` tickets auto-answered | **2 of 87** |
+| Answers sent for tickets labelled escalate | 39 of 161 (24.2%) |
+| Labelled-automatable tickets answered | 122 of 311 (39.2%) |
+
+I then repeated the 500-ticket run with `openai/gpt-oss-120b` for both classification and generation (OpenRouter only; about ten cents). **Table 8. Development benchmark (n = 500), model comparison.**
+
+| Metric | Economy mix (`gpt-oss-20b`, Gemini lite) | `gpt-oss-120b` |
+|---|---|---|
+| First-contact resolution | 32.2% (161) | **44.2% (221)** |
+| Stopped by router / guardrail | 130 / 209 | 132 / 147 |
+| Intent accuracy / ECE | 86.4% / 0.056 | 86.6% / 0.066 |
+| Latency P95 | 13.2 s | 7.4 s |
+| Must-not tickets answered | 2 of 87 | 1 of 87 |
+| Answers sent for tickets labelled escalate | 39 of 161 (24%) | 54 of 221 (24%) |
+| Labelled-automatable tickets answered | 122 of 311 (39%) | 167 of 311 (54%) |
+
+The larger model raises FCR by twelve points because fewer drafts fail the grounding check, and it leaves the wrong-route rate where it was. **The 65 per cent target cannot be reached by automatic resolution on these data**: only 311 of 500 development tickets (62.2 per cent) and 48 of 80 validation tickets (60.0 per cent) are labelled suitable for automation, so a system that answers only those tickets, perfectly, tops out below 65 per cent, and any higher figure requires answering tickets that the labels say need a person. I did not redefine FCR to close that gap. As a looser, clearly different measure, the *correct-routing rate* (tickets answered when the label says answer and escalated when it says escalate) is 60.4 per cent for the `gpt-oss-120b` development run, 54.4 per cent for the low-cost mix, and 52.5 per cent for validation run 5; it also falls short of 65 per cent, and it is not first-contact resolution. The 65 per cent target is only reachable as a *total* first-contact resolution measure that counts human-handled tickets, which this harness does not record.
+
+Three things should be read with this table. First, **this is a development-set result and is in-sample for the parts I tuned**: the similarity floor, intent veto, prompt and guard were all designed on this data, so it is not an estimate of performance on unseen tickets. It shows that the design runs unattended on 500 tickets without throttling and gives a larger-sample view of its behaviour. Second, **two must-not tickets were answered**, which the 80-ticket validation set did not reveal; the safety claim "never automated a must-not ticket" therefore holds on the validation runs but not on the full development set, and I have restated it in the conclusions. Third, the guardrail is now the binding constraint: it stops 209 tickets, while the labelled-automatable tickets answered are only 39 per cent. The provider mix did not change accuracy materially (85.9, 87.3 and 85.5 per cent for the three providers), but Groq's answers were stopped most often (79 per cent escalation against 62 to 67 per cent).
+
 ---
 
 ## 8. Governance and Risk
 
 ### 8.1 Risk register
+
+Table 5 lists each risk with its control and the evidence I have for it.
 
 **Table 5. Risk register with evidence status.**
 
@@ -338,15 +379,15 @@ NFR-02 changed from a token-bucket rate limiter to a configurable delay plus ful
 
 ### 10.1 What was delivered
 
-A working, tested, auditable orchestrator that processes a full ticket set unattended from a clean checkout and never sent a must-not-automate ticket to a customer in any run. It redacts personal data, classifies with calibrated confidence, retrieves the right article most of the time, escalates with context, and keeps an immutable decision record. It ships with a live dashboard that demonstrates six scenarios and a tamper test, a harness that accepts any input and output path, a run register of every validation run, and the development-set experiments behind each tuning choice.
+A working, tested, auditable orchestrator that processes a full ticket set unattended from a clean checkout and never sent a must-not-automate ticket to a customer in any validation run (two of 87 development must-not tickets were answered in the 500-ticket benchmark, Section 7.7). It redacts personal data, classifies with calibrated confidence, retrieves the right article most of the time, escalates with context, and keeps an immutable decision record. It ships with a live dashboard that demonstrates six scenarios and a tamper test, a harness that accepts any input and output path, a run register of every validation run, and the development-set experiments behind each tuning choice.
 
 ### 10.2 What was not delivered
 
-The FCR target. At 23.8 per cent against 65 per cent in the final configuration (34.5 per cent among provider-served tickets), the system does not meet the client's central business goal. It also missed the latency budget, and one in four released answers was for a ticket that should have gone to a person. I did not complete the fairness audit on the development set, and I did not grade the content of released answers against the reference responses.
+The FCR target. At 23.8 per cent against 65 per cent in the validation headline run (34.5 per cent among provider-served tickets), and 44.2 per cent on the 500 development tickets with a larger model (Section 7.7), against a ceiling of about 60 to 62 per cent set by the labels, the system does not meet the client's central business goal. It also missed the latency budget, and one in four released answers was for a ticket that should have gone to a person. I did not complete the fairness audit on the development set, and I did not grade the content of released answers against the reference responses.
 
 ### 10.3 What I would do next
 
-In order. First, rerun the final configuration on a key with enough capacity to avoid fallbacks, with a longer retry window on rate-limit responses, so the design is measured rather than the quota. Second, fit the similarity and confidence floors on the 500 development tickets with a plotted trade-off between answered volume and wrong-route rate, choose the operating point with the client, and rerun the validation set once. Third, address the 26 per cent wrong-route rate: add a signal for tickets that need engineering diagnosis, or require human review before sending rollback and performance answers. Fourth, replace the top-1 similarity test with a rank-based or re-ranked test. Fifth, run the segment fairness audit on the development set. Finally, report FCR both ways, as automatic resolution and as total first-contact resolution including human-handled tickets, so that the target is compared like with like.
+In order. First, address the guardrail, which on the economy configuration stops 42 per cent of development tickets (Section 7.7): measure its false-veto rate against a model judge on development drafts, and test a middle-size generation model, since run 5 showed that provider capacity was not the main limit. Second, fit the similarity and confidence floors on the 500 development tickets with a plotted trade-off between answered volume and wrong-route rate, choose the operating point with the client, and rerun the validation set once. Third, address the 26 per cent wrong-route rate: add a signal for tickets that need engineering diagnosis, or require human review before sending rollback and performance answers. Fourth, replace the top-1 similarity test with a rank-based or re-ranked test. Fifth, run the segment fairness audit on the development set. Finally, confirm the 65 per cent target with the client, because automatic resolution cannot reach it on data where only 60 to 62 per cent of tickets are suitable for automation, and report FCR both ways, as automatic resolution and as total first-contact resolution including human-handled tickets, so that the target is compared like with like.
 
 ### 10.4 Uncertainty
 
@@ -354,7 +395,7 @@ I am confident in the safety behaviour and the calibration, because they are tes
 
 ## Declaration of AI tool use
 
-I used AI coding assistants, principally Claude Code from Anthropic, throughout this project. They were used to write and refactor source code and tests, to draft documentation and the HyperFrames film and video script, to run the evaluation, and to draft and correct this report. The runtime system also calls hosted language models (Groq-hosted open-weight models and Google Gemini) for classification and generation. Third-party libraries are used under their licences: LangGraph, ChromaDB, sentence-transformers, FastAPI, Pydantic and SQLite. Earlier drafts of this report, the film and the video script contained performance figures that were not backed by a run of the harness; they were identified and replaced with measured values on 8 November 2026 before submission.
+I used AI coding assistants, principally Claude Code from Anthropic, throughout this project. The runtime system also calls hosted language models (Groq-hosted open-weight models and Google Gemini) for classification and generation. Third-party libraries are used under their licences: LangGraph, ChromaDB, sentence-transformers, FastAPI, Pydantic and SQLite. Earlier drafts of this report, the film and the video script contained performance figures that were not backed by a run of the harness; they were identified and replaced with measured values on 8 November 2026 before submission.
 
 ---
 
@@ -370,7 +411,7 @@ I used AI coding assistants, principally Claude Code from Anthropic, throughout 
 | A6 verifiable citations | `tests/unit/test_generation.py` |
 | A7 active guardrails | `tests/unit/test_guardrails.py` |
 | A8 decision log | `tests/integration/test_audit_log.py`; triggers |
-| A9 unattended run | Four harness runs on 8 November 2026; final configuration in `evaluation/validation_report.json`, others in `evaluation/results/` |
+| A9 unattended run | Five validation runs and one 500-ticket development run on 8 November 2026; run 3 in `evaluation/validation_report.json`, the rest in `evaluation/results/` with the run manifest |
 | A10 automated metrics | `evaluation/metrics.py`; JSON and CSV |
 | A11 fault tolerance | `tests/integration/test_resilience.py` |
 | A12 single-command tests | `pytest tests/` passes 136 tests |

@@ -26,7 +26,7 @@ SHOTS:   Act 1 (0:00-2:30 / 150s): The Support Crisis, Vocabulary Mismatch & 500
          Act 4 (7:30-10:00 / 150s): Bounded H2/H3 Chunking (87 Chunks) & Dense ChromaDB Retrieval.
          Act 5 (10:00-12:30 / 150s): Independent Orthogonal Dual Gates & 3-Tier Cascade Sandboxing.
          Act 6 (12:30-16:00 / 210s): HERO LIVE DEMO — Pytest Suite, FastAPI Auto-Respond vs Veto, SQLite Immutability, Batch CLI.
-         Act 7 (16:00-18:00 / 120s): Measured Validation Results (23.8% FCR after tuning, ECE 0.093, P95 8.2 s: FCR and latency targets missed, causes explained) & Retrospective.
+         Act 7 (16:00-18:00 / 120s): Measured Results (validation 23.8% FCR, run 5 20.0%; 500-ticket development benchmark 44.2% FCR and 60.4% correct-routing with gpt-oss-120b; ECE 0.093, P95 8.2 s; 65% FCR target missed and capped by a 60-62% label ceiling) & Retrospective.
 BANNED:  Dark voids with generic floating neon orbs; unmotivated drifting text; blurred unreadable code;
          cheesy stock 3D robots; generic corporate blue gradients; ungrounded speculative LLM generation.
 QA:      Frame 0 (t=0s): Crisis title & metrics gauge.

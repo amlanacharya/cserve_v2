@@ -16,7 +16,7 @@
 [7:30 - 10:00| 150s]  ACT IV:  Bounded Semantic Chunking (87 Chunks) & ChromaDB Dense Retrieval
 [10:00-12:30| 150s]  ACT V:   Independent Orthogonal Dual Gates & 3-Tier Cascade Sandboxing
 [12:30-16:00| 210s]  ACT VI:  HERO PRODUCT DEMO — Live Pytest, FastAPI Endpoints, SQLite & Batch CLI
-[16:00-18:00| 120s]  ACT VII: Measured Results (23.8% FCR, ECE 0.093), Honest Retrospective
+[16:00-18:00| 120s]  ACT VII: Measured Results (23.8% validation FCR, 44.2% dev-500 FCR, ECE 0.093), Honest Retrospective
 TOTAL: Exactly 1,080 Seconds (18 Minutes)
 ```
 
@@ -121,13 +121,15 @@ TOTAL: Exactly 1,080 Seconds (18 Minutes)
 ## Act VII: Empirical Benchmark Results, Calibration & Retrospective (16:00 – 18:00 / 120s)
 
 *   **Timeline:** `data-start="960"` &bull; `data-duration="120"`
-*   **Visual Setup:** Benchmark summary dashboard. Three metric cards (FCR 23.8% not met, ECE 0.093 met, P95 8,220 ms not met) and takeaways on what tuning changed.
+*   **Visual Setup:** Benchmark summary dashboard. Three metric cards (FCR 23.8% not met, ECE 0.093 met, P95 8,220 ms not met) and takeaways: FCR vs correct-routing, the 500-ticket development benchmark, and the label ceiling.
 *   **Voiceover Narration:**
     > *(16:00 – 16:40)* "Here is what the measured results say, on the 80-ticket validation set. My first honest run gave first-contact resolution of **7.5 per cent**, against a target of 65. I then made four changes: lowered the retrieval-similarity floor from 0.65 to 0.40, forced sensitive intents such as data residency and security to a human, tightened the generation prompt so answers only restate the sources, and made the guardrail's word matching stem-aware. The final configuration reached **23.8 per cent**: 19 of 80 answered. The target is still missed by a wide margin, and I want to be clear about that."
     >
-    > *(16:40 – 17:20)* "What held up: calibration. Expected Calibration Error is **0.093**, inside our 0.15 target, with intent accuracy at 85 per cent and retrieval precision at three of 92.5 per cent. No ticket labelled must-not-automate was ever answered, nothing crashed, and all eighty decisions are in the audit log. What did not hold up: a quarter of the set, 25 tickets, was escalated only because the free-tier model provider hit its rate limit, five of the nineteen answers we sent were for tickets that should have gone to a person, and P95 latency was 8.2 seconds against a 3-second budget."
+    > *(16:40 – 17:20)* "What held up: calibration. Expected Calibration Error is **0.093**, inside our 0.15 target, with intent accuracy at 85 per cent and retrieval precision at three of 92.5 per cent. On validation no ticket labelled must-not-automate was answered, nothing crashed, and all eighty decisions are in the audit log. What did not hold up: five of the nineteen answers we sent were for tickets that should have gone to a person, and P95 latency was 8.2 seconds against a 3-second budget. I reran validation on three low-cost providers with no rate-limit fallbacks and got 20.0 per cent, 16 of 80, so rate limits were not the main constraint."
     >
-    > *(17:20 – 18:00)* "Two honest caveats. The similarity floor was chosen after I saw validation results, so these figures are optimistic, and I ran the validation set four times, all recorded in the run register. The hidden set has not been run. Next I would fit the thresholds on the development tickets, rerun with enough provider capacity, and add a human review step for the answer types that are still wrong-routed. Thank you."
+    > *(17:20 – 17:40)* "I also ran all 500 development tickets through the real pipeline, for about 13 cents. These are in-sample for the parts I tuned. With a larger model, first-contact resolution was **44.2 per cent**, 221 of 500, accuracy 86.6, calibration error 0.0657, P95 7.4 seconds, and one of 87 must-not tickets was answered; the economy mix reached 32.2 per cent and answered two. I report a second measure, the correct-routing rate: tickets sent down the right path, answered or escalated. It is 60.4 per cent for the larger model, 54.4 for the economy mix and 52.5 for validation run 5. It is not first-contact resolution, and I did not redefine FCR. Neither reaches 65, and only 60 to 62 per cent of tickets are labelled suitable for automation, so 65 per cent automatic resolution would mean answering tickets the labels say need a person."
+    >
+    > *(17:40 – 18:00)* "Two honest caveats. The similarity floor was chosen after I saw validation results, so these figures are optimistic, and I ran the validation set four times, all recorded in the run register. The hidden set has not been run. Next I would fit the thresholds on the development tickets, rerun with enough provider capacity, and add a human review step for the answer types that are still wrong-routed. Thank you."
 
 ---
 

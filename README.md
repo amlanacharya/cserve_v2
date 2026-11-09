@@ -12,6 +12,10 @@ The system is coordinated by a LangGraph `StateGraph`, wrapped with `@safe_node`
 
 80 tickets, unattended run, report in `evaluation/validation_report.json`: **FCR 23.8% (target 65%, not met; 7.5% before tuning)**, intent accuracy 85.0%, ECE 0.093, retrieval precision@3 92.5%, P95 latency 8.2 s on a rate-limited free tier (budget 3 s, not met), 0 crashes, 80/80 decisions logged, 0 of 14 must-not-automate tickets auto-answered; 25 tickets fell back because the provider rate-limited. All four runs and how each change was chosen are in `02_Report/` section 7 and `evaluation/results/`.
 
+**Development-set benchmark (500 tickets, three low-cost providers in rotation, about $0.03):** 500/500 processed with no provider fallbacks, FCR 32.2%, intent accuracy 86.4%, ECE 0.056, 2 of 87 must-not tickets answered (a safety gap the 80-ticket set did not show), guardrail stops 41.8%. In-sample for the tuned components; see `02_Report/` section 7.7 and `evaluation/results/RUN_MANIFEST.md`. With `openai/gpt-oss-120b` (OpenRouter only, ~$0.10): FCR 44.2% (221/500), 1 of 87 must-not answered, P95 7.4 s. Ceiling: only 62.2% of dev tickets (60% of validation) are labelled automatable, so 65% auto-resolved is not reachable without answering tickets labelled escalate. Validation run 5 on the same providers: FCR 20.0% (16/80), 0 fallbacks.
+
+Providers are optional and configured in `.env` (see `.env.example`): `PROVIDER_ORDER`, `PROVIDER_STRATEGY=roundrobin`, `MAX_SPEND_USD`.
+
 ---
 
 ## Acceptance Criteria Traceability (A1–A12)

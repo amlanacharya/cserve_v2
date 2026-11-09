@@ -7,7 +7,7 @@ from src.core.config import get_settings
 from src.core.models import CanonicalTicket, DocumentChunk
 
 # Every provider credential read by src/core/config.py.
-PROVIDER_KEY_VARS = ("GROQ_API_KEY", "GEMINI_API_KEY")
+PROVIDER_KEY_VARS = ("GROQ_API_KEY", "GEMINI_API_KEY", "GEMINI", "OPENROUTER_API_KEY", "OPENROUTER", "PROVIDER_ORDER", "PROVIDER_STRATEGY", "PRIMARY_PROVIDER", "MAX_SPEND_USD")
 
 
 @pytest.fixture(autouse=True)

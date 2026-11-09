@@ -11,21 +11,39 @@ load_dotenv()
 class Settings(BaseModel):
     # Provider API Keys
     groq_api_key: str = Field(default_factory=lambda: os.getenv("GROQ_API_KEY", ""))
-    gemini_api_key: str = Field(default_factory=lambda: os.getenv("GEMINI_API_KEY", ""))
+    gemini_api_key: str = Field(default_factory=lambda: os.getenv("GEMINI_API_KEY") or os.getenv("GEMINI", ""))
     groq_base_url: str = Field(default_factory=lambda: os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1"))
+    openrouter_api_key: str = Field(
+        default_factory=lambda: os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENROUTER", "")
+    )
+    openrouter_base_url: str = Field(
+        default_factory=lambda: os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+    )
+    openrouter_model: str = Field(default_factory=lambda: os.getenv("OPENROUTER_MODEL", "openai/gpt-oss-20b"))
+    # Tier order, e.g. "openrouter,groq,gemini". PRIMARY_PROVIDER (older setting) is kept as a shortcut.
+    provider_order: list[str] = Field(
+        default_factory=lambda: [
+            x.strip().lower()
+            for x in (os.getenv("PROVIDER_ORDER") or os.getenv("PRIMARY_PROVIDER", "groq")).split(",")
+            if x.strip()
+        ]
+    )
+    # "failover" (default) or "roundrobin"
+    provider_strategy: str = Field(default_factory=lambda: os.getenv("PROVIDER_STRATEGY", "failover").lower())
+    max_spend_usd: float = Field(default_factory=lambda: float(os.getenv("MAX_SPEND_USD", "0")))  # 0 = no cap
 
     # Provider Models
     groq_gen_model: str = Field(
         default_factory=lambda: os.getenv("GROQ_GEN_MODEL")
         or os.getenv("GROQ_PRIMARY_MODEL")
-        or "llama-3.3-70b-versatile"
+        or "openai/gpt-oss-20b"
     )
     groq_classify_model: str = Field(
         default_factory=lambda: os.getenv("GROQ_CLASSIFY_MODEL")
         or os.getenv("GROQ_SUMMARY_MODEL")
-        or "llama-3.1-8b-instant"
+        or "openai/gpt-oss-20b"
     )
-    gemini_model: str = Field(default_factory=lambda: os.getenv("GEMINI_MODEL", "gemini-2.5-flash"))
+    gemini_model: str = Field(default_factory=lambda: os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite"))
 
     # Thresholds & Parameters
     intent_confidence_threshold: float = Field(

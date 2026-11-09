@@ -33,6 +33,10 @@ def test_offline_fallback_when_providers_unconfigured():
         settings_instance = mock_settings.return_value
         settings_instance.groq_api_key = ""
         settings_instance.gemini_api_key = ""
+        settings_instance.openrouter_api_key = ""
+        settings_instance.provider_order = ["groq"]
+        settings_instance.provider_strategy = "failover"
+        settings_instance.max_spend_usd = 0
         settings_instance.batch_delay = 0.0
 
         out_text, provider = call_cascade(

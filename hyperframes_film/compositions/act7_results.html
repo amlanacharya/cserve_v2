@@ -116,7 +116,7 @@
     <div class="scene-header">
       <div class="category-pill" data-layout-ignore>Empirical Benchmarks &amp; Retrospective</div>
       <h1 class="scene-title">Empirical Benchmark Results, Calibration &amp; Retrospective</h1>
-      <p class="scene-subtitle">Final configuration on the 80-ticket validation set: 23.8% FCR against the 65% mandate (7.5% before tuning), ECE 0.093, P95 8.2 s. Safety and calibration held; automation yield did not.</p>
+      <p class="scene-subtitle">Validation (80 tickets): 23.8% FCR against the 65% mandate (7.5% before tuning). Development benchmark (500 tickets): 44.2% FCR with a larger model. Target not met on either; the labels cap automatic resolution at 60-62%.</p>
     </div>
 
     <div class="grid-3">
@@ -126,7 +126,7 @@
           <span class="badge badge-red">MANDATE: &ge; 65% &mdash; NOT MET</span>
         </div>
         <div class="card-metric" style="color:#dc2626;">23.8%</div>
-        <div class="card-desc">19 of 80 auto-resolved (7.5% at the first run). 27 stopped at the router, 9 at the guardrail, and 25 fell back when the free-tier provider rate-limited. 5 of 19 answers were wrong-route. No must-not ticket was answered.</div>
+        <div class="card-desc">19 of 80 auto-resolved (7.5% at the first run). Run 5 on three low-cost providers, with no rate-limit fallbacks: 20.0% (16 of 80), so rate limits were not the main constraint. No must-not ticket was answered on validation.</div>
       </div>
 
       <div class="card" id="act7-card2">
@@ -135,7 +135,7 @@
           <span class="badge badge-green">THRESHOLD: &le; 0.15 &mdash; MET</span>
         </div>
         <div class="card-metric" style="color:#1d4ed8;">0.093</div>
-        <div class="card-desc">10-bin ECE on 80 tickets; intent accuracy 85.0% and retrieval precision@3 92.5%. Small sample, so the estimate is noisy.</div>
+        <div class="card-desc">10-bin ECE on 80 tickets; intent accuracy 85.0%, retrieval precision@3 92.5%. On 500 development tickets (gpt-oss-120b): ECE 0.0657, accuracy 86.6%.</div>
       </div>
 
       <div class="card" id="act7-card3">
@@ -144,7 +144,7 @@
           <span class="badge badge-red">BUDGET: &lt; 3,000 MS &mdash; NOT MET</span>
         </div>
         <div class="card-metric" style="color:#7c3aed;">8,220 ms</div>
-        <div class="card-desc">P50 1.3 s. Free-tier Groq with 429 back-off retries inflates the tail; the 3 s budget was still missed.</div>
+        <div class="card-desc">Validation P50 1.3 s. Development run with gpt-oss-120b: P95 7.4 s. The 3 s budget was missed in both.</div>
       </div>
     </div>
 
@@ -154,10 +154,10 @@
           <div class="card-title">Core Architectural Takeaways</div>
           <span class="badge badge-blue">KEY FINDINGS</span>
         </div>
-        <div style="font-size:16px; line-height:1.65; color:#334155;">
-          <div style="margin-bottom:10px;"><strong style="color:#0f172a;">1. Calibration held:</strong> ECE 0.093 means confidence tracked accuracy, so the router escalated for the right reasons.</div>
-          <div style="margin-bottom:10px;"><strong style="color:#0f172a;">2. Tuning helped, not enough:</strong> floor 0.65 to 0.40, an intent veto, an extractive prompt and a stemmed guard took FCR from 7.5% to 23.8%. Next: fit thresholds on development data.</div>
-          <div><strong style="color:#0f172a;">3. Failure is safe:</strong> when the provider rate-limited, 25 tickets fell back offline and escalated rather than guessing.</div>
+        <div style="font-size:15px; line-height:1.55; color:#334155;">
+          <div style="margin-bottom:8px;"><strong style="color:#0f172a;">1. Two measures, neither at 65%:</strong> FCR is the auto-resolved share. Correct-routing is the share sent down the right path, answer or escalate: 52.5% (validation run 5), 60.4% (dev, 120b), 54.4% (dev, economy 20B).</div>
+          <div style="margin-bottom:8px;"><strong style="color:#0f172a;">2. Development benchmark, 500 tickets, about 13 cents:</strong> gpt-oss-120b FCR 44.2% (221/500), P95 7.4 s, 1 of 87 must-not tickets answered. Economy 20B mix FCR 32.2% (161/500), 2 of 87. In-sample for tuned parts.</div>
+          <div><strong style="color:#0f172a;">3. Label ceiling:</strong> only 60-62% of tickets are labelled auto_respond, so 65% needs answering tickets labelled escalate. FCR was not redefined.</div>
         </div>
       </div>
 

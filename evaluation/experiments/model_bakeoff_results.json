@@ -1,0 +1,74 @@
+{
+  "tickets": [
+    "DEV-0212",
+    "DEV-0119",
+    "DEV-0217",
+    "DEV-0011",
+    "DEV-0050",
+    "DEV-0260",
+    "DEV-0082",
+    "DEV-0279",
+    "DEV-0371",
+    "DEV-0032",
+    "DEV-0236",
+    "DEV-0175",
+    "DEV-0038",
+    "DEV-0174",
+    "DEV-0286",
+    "DEV-0319",
+    "DEV-0031",
+    "DEV-0098",
+    "DEV-0085",
+    "DEV-0360"
+  ],
+  "results": {
+    "openai/gpt-oss-20b": {
+      "n": 20,
+      "correct": 18,
+      "accuracy": 0.9,
+      "parse_or_vocab_failures": 0,
+      "mean_confidence": 0.919,
+      "mean_latency_s": 7.04,
+      "providers_seen": [
+        "openrouter"
+      ],
+      "spend_usd": 0.00109
+    },
+    "openai/gpt-oss-120b": {
+      "n": 20,
+      "correct": 19,
+      "accuracy": 0.95,
+      "parse_or_vocab_failures": 0,
+      "mean_confidence": 0.94,
+      "mean_latency_s": 1.92,
+      "providers_seen": [
+        "openrouter"
+      ],
+      "spend_usd": 0.00201
+    },
+    "google/gemini-2.5-flash-lite": {
+      "n": 20,
+      "correct": 18,
+      "accuracy": 0.9,
+      "parse_or_vocab_failures": 0,
+      "mean_confidence": 0.906,
+      "mean_latency_s": 1.08,
+      "providers_seen": [
+        "openrouter"
+      ],
+      "spend_usd": 0.00204
+    },
+    "qwen/qwen3.7-flash": {
+      "n": 20,
+      "correct": 19,
+      "accuracy": 0.95,
+      "parse_or_vocab_failures": 0,
+      "mean_confidence": 0.933,
+      "mean_latency_s": 12.2,
+      "providers_seen": [
+        "openrouter"
+      ],
+      "spend_usd": 0.00275
+    }
+  }
+}

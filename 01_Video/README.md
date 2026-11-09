@@ -22,7 +22,7 @@ This directory contains two complementary video artifacts designed for immediate
 2. **`01_Video/hyperframes_presentation_18min.mp4`** (Master 18:00 Film):
    - **Comprehensive Executive Film** rendered directly via HeyGen HyperFrames.
    - Built with an executive White & Slate ground (`#f8fafc` / `#ffffff`), deep navy typography (`#0f172a`), and royal blue accenting (`#1d4ed8` / `#2563eb`), removing all informal rehearsal kickers.
-   - Seamlessly integrates the full architectural thesis, multi-channel ingestion, bounded chunking, dual gates, the real recorded in-app control plane (Act VI), and the measured validation results (Act VII: FCR 7.5%, target not met).
+   - Seamlessly integrates the full architectural thesis, multi-channel ingestion, bounded chunking, dual gates, the real recorded in-app control plane (Act VI), and the measured validation results (Act VII: FCR 23.8% on validation and 44.2% on the 500-ticket development benchmark, correct-routing shown separately, target not met).
 
 ---
 
@@ -38,7 +38,7 @@ The 18-minute core film is structured into 7 distinct sections, adhering to the 
 | **Section 4** | `act4_retrieval.html` | 7:30 – 10:00 | 150s | **Semantic Retrieval & Chunking:** Bounded H2/H3 chunking (87 chunks across 29 articles); ChromaDB 0.3.21 dense embeddings; Pydantic v2 backward compatibility shim. |
 | **Section 5** | `act5_routing.html` | 10:00 – 12:30 | 150s | **Orthogonal Dual Gates & Cascade:** Independent dual gates ($c \ge 0.75, s_{\text{ret}} \ge 0.65$); XML prompt sandboxing; 3-tier cascade (Groq &rarr; Gemini &rarr; Offline Mock). |
 | **Section 6** | `act6_demo.html` | 12:30 – 16:00 | 210s | **Live In-App Control Plane:** real screen recording of the dashboard in a browser frame with a synchronised scenario sidebar (auto-response, safety veto, gate escalations, guardrail veto, PII/Luhn, SQLite tamper test, audit log). |
-| **Section 7** | `act7_results.html` | 16:00 – 18:00 | 120s | **Empirical Benchmarks & Retrospective:** Measured validation results: 23.8% FCR after tuning (7.5% first run; target 65% not met), ECE 0.093, P95 8.2 s (budget not met), causes and next steps. |
+| **Section 7** | `act7_results.html` | 16:00 – 18:00 | 120s | **Empirical Benchmarks & Retrospective:** Measured results: 23.8% FCR on validation (7.5% first run; 20.0% on run 5), 44.2% FCR on the 500-ticket development benchmark, correct-routing rate vs FCR, label ceiling of 60-62% (target 65% not met), ECE 0.093, P95 8.2 s (budget not met), next steps. |
 
 ---
 
@@ -91,7 +91,7 @@ To assemble the complete 20-minute capstone submission with your webcam talking-
    - Import `01_Video/hyperframes_presentation_18min.mp4` (or splice in `01_Video/in_app_demo_live.mp4` for Act 6).
    - Follow the minute-by-minute speaking cues in [hyperframes_film/DIRECTOR_SCRIPT.md](file:///c:/Users/amlan/Downloads/cloudserve/FDE_Capstone_Complete/Capstone_Pack/hyperframes_film/DIRECTOR_SCRIPT.md).
 3. **Webcam Outro Clip (18:00 – 20:00)**:
-   - Record yourself reflecting on key lessons: why the safe path held (calibration ECE 0.093, zero must-not tickets automated) while the FCR target was missed (23.8%), what the similarity-floor finding taught you, and the value of tamper-evident audit logs.
+   - Record yourself reflecting on key lessons: why the safe path held (calibration ECE 0.093, no must-not ticket automated on validation; 1 to 2 of 87 on the development benchmark) while the FCR target was missed (23.8%), what the similarity-floor finding taught you, and the value of tamper-evident audit logs.
 4. **Assembly & Export in Clipchamp**:
    - Open **Microsoft Clipchamp** &rarr; New Project (16:9, 1080p).
    - Arrange: `[Webcam Intro (2m)]` &rarr; `[HyperFrames Film & Demo (18m)]` &rarr; `[Webcam Outro (2m)]`.

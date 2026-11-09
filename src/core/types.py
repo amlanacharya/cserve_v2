@@ -4,7 +4,7 @@ from typing import Literal, get_args
 Urgency = Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"]
 EscalatedDisposition = Literal["ESCALATED_ROUTER", "ESCALATED_GUARDRAIL", "ESCALATED_ERROR"]
 Disposition = Literal["AUTO_RESOLVED", "ESCALATED_ROUTER", "ESCALATED_GUARDRAIL", "ESCALATED_ERROR"]
-Provider = Literal["groq", "gemini", "offline_mock"]
+Provider = Literal["groq", "gemini", "openrouter", "offline_mock"]
 RoutingAction = Literal["AUTO_RESPOND", "ESCALATE"]
 GuardrailStatus = Literal["PASSED", "TRIPPED"]
 
