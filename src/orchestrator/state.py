@@ -16,6 +16,7 @@ from src.routing.escalation import build_escalation_packet
 
 
 class AgentState(TypedDict, total=False):
+    guardrail_retried: bool
     # Pipeline Identification & Input
     run_id: str
     raw_ticket: dict[str, Any]

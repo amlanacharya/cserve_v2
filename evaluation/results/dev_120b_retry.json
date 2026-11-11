@@ -1,0 +1,82 @@
+{
+  "run_id": "batch_1794410088_d29370",
+  "volume": {
+    "total_tickets": 500,
+    "auto_resolved": 317,
+    "total_escalated": 183,
+    "escalated_router": 132,
+    "escalated_guardrail": 51,
+    "escalated_error": 0,
+    "auto_resolve_rate": 0.634,
+    "escalation_rate": 0.366
+  },
+  "business": {
+    "first_contact_resolution_rate": 0.634,
+    "fcr_target_met": false
+  },
+  "technical": {
+    "accuracy": 0.868,
+    "expected_calibration_error": 0.0639,
+    "retrieval_precision_at_k": 0.8669,
+    "retrieval_k": 3,
+    "retrieval_failed_count": 0,
+    "latency_p50_ms": 16800.68,
+    "latency_p90_ms": 33722.25,
+    "latency_p95_ms": 39345.67,
+    "latency_avg_ms": 17994.11,
+    "latency_max_ms": 89593.06
+  },
+  "governance": {
+    "guardrail_tripped_count": 51,
+    "guardrail_trip_rate": 0.102,
+    "degraded_count": 0,
+    "degraded_rate": 0.0,
+    "provider_distribution": {
+      "groq": 12,
+      "openrouter": 451,
+      "gemini": 35,
+      "offline_mock": 2
+    },
+    "pii_detected_count": 0,
+    "pii_detection_rate": 0.0,
+    "pii_inbound_redacted_count": 0,
+    "pii_output_violation_count": 0,
+    "pii_redactions_total": 0,
+    "hallucination_suppressed_count": 51,
+    "hallucination_suppression_rate": 0.102,
+    "per_provider": {
+      "openrouter": {
+        "tickets": 443,
+        "accuracy": 0.8646,
+        "expected_calibration_error": 0.0705,
+        "latency_avg_ms": 18330.55,
+        "latency_p95_ms": 39304.55,
+        "escalation_rate": 0.3657
+      },
+      "gemini": {
+        "tickets": 29,
+        "accuracy": 0.931,
+        "expected_calibration_error": 0.0721,
+        "latency_avg_ms": 19980.91,
+        "latency_p95_ms": 40280.67,
+        "escalation_rate": 0.2414
+      },
+      "groq": {
+        "tickets": 26,
+        "accuracy": 0.8846,
+        "expected_calibration_error": 0.0858,
+        "latency_avg_ms": 10420.48,
+        "latency_p95_ms": 26488.65,
+        "escalation_rate": 0.4615
+      },
+      "offline_mock": {
+        "tickets": 2,
+        "accuracy": 0.5,
+        "expected_calibration_error": 0.0,
+        "latency_avg_ms": 13121.08,
+        "latency_p95_ms": 15602.71,
+        "escalation_rate": 1.0
+      }
+    }
+  }
+}

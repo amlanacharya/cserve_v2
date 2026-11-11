@@ -5,10 +5,14 @@ from src.core.models import DocumentChunk
 from src.generation.cascade import call_cascade
 from src.generation.prompts import (
     GENERATION_SYSTEM_PROMPT,
+    RETRY_SYSTEM_SUFFIX,
+    STRICT_RETRY_SUFFIX,
     format_generation_prompt,
+    format_retry_feedback,
 )
 
 DOC_CITATION_REGEX = re.compile(r"\[(DOC-[A-Z0-9\-]+)\]")
+NEEDS_HUMAN_REGEX = re.compile(r"^\W*NEEDS_HUMAN\s*:\s*(yes|no)\W*$", re.IGNORECASE | re.MULTILINE)
 RAW_DOC_ID_REGEX = re.compile(r"(?<!\[)(DOC-[A-Z0-9\-]+)(?!\])")
 
 
@@ -50,6 +54,9 @@ def generate_response(
     subject: str | None,
     body: str,
     retrieved_docs: list[DocumentChunk],
+    retry_violations: list[str] | None = None,
+    retry_unsupported: list[str] | None = None,
+    strict: bool = False,
 ) -> dict[str, Any]:
     """
     Compiles XML-sandboxed prompt with top retrieved context chunks,
@@ -61,13 +68,30 @@ def generate_response(
     doc_dicts = [{"doc_id": d.doc_id, "text": d.text} for d in top_docs]
     user_prompt = format_generation_prompt(subject, body, doc_dicts)
 
+    system_prompt = GENERATION_SYSTEM_PROMPT
+    if retry_violations:
+        system_prompt += RETRY_SYSTEM_SUFFIX
+        if strict:
+            system_prompt += STRICT_RETRY_SUFFIX
+        user_prompt += format_retry_feedback(
+            retry_violations, retry_unsupported or [], [d.doc_id for d in top_docs]
+        )
+
     raw_response, provider_used = call_cascade(
-        system_prompt=GENERATION_SYSTEM_PROMPT,
+        system_prompt=system_prompt,
         user_prompt=user_prompt,
         temperature=settings.generation_temperature,
         task_type="generation",
     )
 
+    needs_human = None
+    if raw_response and strict:
+        m = NEEDS_HUMAN_REGEX.search(raw_response)
+        if m:
+            needs_human = m.group(1).lower() == 'yes'
+            raw_response = NEEDS_HUMAN_REGEX.sub('', raw_response).strip()
+        else:
+            needs_human = True  # strict mode: a missing flag is treated as unsure
     clean_response = normalize_generated_text(raw_response) if raw_response else None
     citations = extract_citations(clean_response) if clean_response else []
 
@@ -75,4 +99,5 @@ def generate_response(
         "draft_response": clean_response,
         "citations": citations,
         "provider_used": provider_used,
+        "needs_human": needs_human,
     }

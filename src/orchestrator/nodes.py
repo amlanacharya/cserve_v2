@@ -1,3 +1,4 @@
+import os
 import sys
 from typing import Any
 from src.audit.logger import log_decision
@@ -5,11 +6,14 @@ from src.classify.classifier import classify_ticket
 from src.core.config import get_settings
 from src.generation.generator import generate_response
 from src.guardrails import evaluate_guardrails
+from src.guardrails.hallucination import find_unsupported_sentences, strict_support_violations
 from src.ingest.normalizer import normalize_ticket_with_stats
 from src.orchestrator.state import RunSnapshot, elapsed_ms
 from src.orchestrator.wrappers import safe_node
 from src.retrieval.store import query_documents
 from src.routing.router import evaluate_route
+
+_RETRYABLE_PREFIXES = ("LOW_UNIGRAM_ENTAILMENT", "MISSING_DOC_CITATIONS", "HALLUCINATED_DOC_ID")
 
 
 @safe_node(node_name="normalize_node")
@@ -94,12 +98,46 @@ def guardrails_node(state: dict[str, Any]) -> dict[str, Any]:
         retrieved_docs=retrieved_docs,
     )
 
+    extra: dict[str, Any] = {}
+    strict = os.environ.get("GUARDRAIL_RETRY_STRICT", "0") == "1"
+    if (
+        status != "PASSED"
+        and (os.environ.get("GUARDRAIL_RETRY", "0") == "1" or strict)
+        and all(v.startswith(_RETRYABLE_PREFIXES) for v in violations)
+        and not state.get("guardrail_retried")
+    ):
+        unsupported = find_unsupported_sentences(draft or "", citations, retrieved_docs)
+        retry = generate_response(
+            subject=state["canonical_ticket"].subject,
+            body=state["canonical_ticket"].body,
+            retrieved_docs=retrieved_docs,
+            retry_violations=list(violations),
+            retry_unsupported=unsupported,
+            strict=strict,
+        )
+        extra = {"guardrail_retried": True}
+        if retry.get("draft_response") and str(retry["draft_response"]).strip():
+            draft = retry["draft_response"]
+            citations = retry["citations"]
+            status, violations = evaluate_guardrails(
+                draft_response=draft, citations=citations, retrieved_docs=retrieved_docs
+            )
+            if strict and status == "PASSED":
+                if retry.get("needs_human") is not False:
+                    status, violations = "TRIPPED", ["STRICT_NEEDS_HUMAN"]
+                else:
+                    sv = strict_support_violations(draft, citations, retrieved_docs)
+                    if sv:
+                        status, violations = "TRIPPED", sv
+            extra.update({"draft_response": draft, "citations": citations})
+
     if status == "PASSED":
         return {
             "guardrail_status": "PASSED",
             "guardrail_violations": [],
             "final_response": draft,
             "final_disposition": "AUTO_RESOLVED",
+            **extra,
         }
     else:
         return {
@@ -107,6 +145,7 @@ def guardrails_node(state: dict[str, Any]) -> dict[str, Any]:
             "guardrail_violations": violations,
             "final_response": None,
             "final_disposition": "ESCALATED_GUARDRAIL",
+            **extra,
         }
 
 

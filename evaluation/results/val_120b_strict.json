@@ -1,0 +1,73 @@
+{
+  "run_id": "batch_1794410088_913144",
+  "volume": {
+    "total_tickets": 80,
+    "auto_resolved": 29,
+    "total_escalated": 51,
+    "escalated_router": 29,
+    "escalated_guardrail": 22,
+    "escalated_error": 0,
+    "auto_resolve_rate": 0.3625,
+    "escalation_rate": 0.6375
+  },
+  "business": {
+    "first_contact_resolution_rate": 0.3625,
+    "fcr_target_met": false
+  },
+  "technical": {
+    "accuracy": 0.8625,
+    "expected_calibration_error": 0.0794,
+    "retrieval_precision_at_k": 0.9245,
+    "retrieval_k": 3,
+    "retrieval_failed_count": 0,
+    "latency_p50_ms": 13384.56,
+    "latency_p90_ms": 37001.04,
+    "latency_p95_ms": 45445.16,
+    "latency_avg_ms": 16479.74,
+    "latency_max_ms": 59626.44
+  },
+  "governance": {
+    "guardrail_tripped_count": 22,
+    "guardrail_trip_rate": 0.275,
+    "degraded_count": 0,
+    "degraded_rate": 0.0,
+    "provider_distribution": {
+      "groq": 4,
+      "openrouter": 41,
+      "gemini": 35
+    },
+    "pii_detected_count": 0,
+    "pii_detection_rate": 0.0,
+    "pii_inbound_redacted_count": 0,
+    "pii_output_violation_count": 0,
+    "pii_redactions_total": 0,
+    "hallucination_suppressed_count": 0,
+    "hallucination_suppression_rate": 0.0,
+    "per_provider": {
+      "openrouter": {
+        "tickets": 40,
+        "accuracy": 0.95,
+        "expected_calibration_error": 0.0582,
+        "latency_avg_ms": 18953.32,
+        "latency_p95_ms": 47289.06,
+        "escalation_rate": 0.7
+      },
+      "groq": {
+        "tickets": 4,
+        "accuracy": 0.5,
+        "expected_calibration_error": 0.48,
+        "latency_avg_ms": 6400.57,
+        "latency_p95_ms": 11290.71,
+        "escalation_rate": 0.5
+      },
+      "gemini": {
+        "tickets": 36,
+        "accuracy": 0.8056,
+        "expected_calibration_error": 0.1183,
+        "latency_avg_ms": 14851.23,
+        "latency_p95_ms": 44255.04,
+        "escalation_rate": 0.5833
+      }
+    }
+  }
+}

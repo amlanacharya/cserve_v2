@@ -85,3 +85,27 @@ def format_generation_prompt(
     prompt += "</retrieved_context>\n\nPlease answer the customer ticket with [DOC-ID] citations."
     return prompt
 
+
+
+RETRY_SYSTEM_SUFFIX = """
+STRICT RETRY: your previous draft was rejected by the automated grounding guardrail. Regenerate it now.
+- Quote or closely paraphrase ONLY sentences that appear in <retrieved_context>; reuse its exact key terms.
+- Cite ONLY DOC-IDs that appear as <doc id="..."> in <retrieved_context>.
+- DROP every sentence you cannot support verbatim from the context. A shorter answer is better than an unsupported one.
+- Do not add advice, causes, examples or pleasantries."""
+
+
+def format_retry_feedback(violations: list[str], unsupported: list[str], allowed_ids: list[str]) -> str:
+    lines = ["", "", "<guardrail_feedback>", "Violations: " + "; ".join(violations)]
+    if unsupported:
+        lines.append("Unsupported sentences to remove or rewrite from context:")
+        lines.extend(f"- {escape_xml(s)}" for s in unsupported)
+    lines.append("Allowed citation IDs: " + ", ".join(allowed_ids))
+    lines.append("</guardrail_feedback>")
+    return chr(10).join(lines)
+
+
+STRICT_RETRY_SUFFIX = """
+STRICT FORMAT: Do NOT end with any sentence about escalating, contacting support, or what the documentation does not cover. Do not write any such sentence anywhere.
+Write only sentences that restate facts or steps stated in <retrieved_context>, each with a [DOC-ID] citation.
+After the answer, on its own final line, write exactly NEEDS_HUMAN: no if the context fully answers the ticket, or NEEDS_HUMAN: yes if it does not (then write only that line)."""

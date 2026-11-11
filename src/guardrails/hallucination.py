@@ -76,3 +76,62 @@ def check_hallucination_and_entailment(
 
     return violations
 
+
+
+def find_unsupported_sentences(
+    draft_response: str,
+    citations: list[str],
+    retrieved_docs: list[DocumentChunk],
+    min_entailment_ratio: float = 0.50,
+) -> list[str]:
+    """Return the draft sentences whose lexical grounding ratio is below the threshold."""
+    relevant = [d for d in retrieved_docs if d.doc_id in citations]
+    ctx = " ".join(d.text for d in relevant).lower()
+    vocab = {_stem(w) for w in WORD_REGEX.findall(ctx) if w not in STOP_WORDS}
+    bad: list[str] = []
+    for sentence in (s.strip() for s in SENTENCE_SPLIT_REGEX.split(draft_response or "") if s.strip()):
+        words = [w.lower() for w in WORD_REGEX.findall(sentence)]
+        words = [_stem(w) for w in words if w not in STOP_WORDS and not DOC_ID_TOKEN.match(w)]
+        if words and sum(1 for w in words if w in vocab) / len(words) < min_entailment_ratio:
+            bad.append(sentence)
+    return bad
+
+
+NON_ANSWER_REGEX = re.compile(
+    r"\b(does not|do not|doesn't|don't|cannot|can't|not) (cover|contain|mention|specify|state|include|provide|say|describe|address)\b"
+    r"|\b(no information|not documented|not covered|unable to)\b|\bescalat",
+    re.IGNORECASE,
+)
+
+
+def strict_support_violations(
+    draft_response: str,
+    citations: list[str],
+    retrieved_docs: list[DocumentChunk],
+    min_ratio: float = 0.60,
+    min_supported: int = 2,
+) -> list[str]:
+    """Stricter acceptance test for regenerated drafts: every content sentence needs
+    >= min_ratio overlap, at least min_supported such sentences, and no non-answer
+    ('docs do not cover X') or escalation sentences are tolerated."""
+    relevant = [d for d in retrieved_docs if d.doc_id in citations]
+    ctx = " ".join(d.text for d in relevant).lower()
+    vocab = {_stem(w) for w in WORD_REGEX.findall(ctx) if w not in STOP_WORDS}
+    violations: list[str] = []
+    supported = 0
+    for sentence in (s.strip() for s in SENTENCE_SPLIT_REGEX.split(draft_response or "") if s.strip()):
+        if NON_ANSWER_REGEX.search(sentence):
+            violations.append(f"STRICT_NON_ANSWER_SENTENCE: {sentence[:80]}")
+            continue
+        words = [w.lower() for w in WORD_REGEX.findall(sentence)]
+        words = [_stem(w) for w in words if w not in STOP_WORDS and not DOC_ID_TOKEN.match(w)]
+        if not words:
+            continue
+        ratio = sum(1 for w in words if w in vocab) / len(words)
+        if ratio < min_ratio:
+            violations.append(f"STRICT_LOW_SUPPORT: ratio={ratio:.2f} < {min_ratio:.2f}")
+        else:
+            supported += 1
+    if supported < min_supported:
+        violations.append(f"STRICT_TOO_FEW_SUPPORTED: {supported} < {min_supported}")
+    return violations
