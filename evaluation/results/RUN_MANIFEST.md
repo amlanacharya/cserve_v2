@@ -15,3 +15,9 @@
 Reading these results: the similarity floor, intent veto, generation prompt and stemmed guard were all tuned on development
 and validation data, so the figures are **in-sample for the tuned components** and are not a generalisation estimate. They show
 that the design runs unattended on 500 tickets without provider throttling. The hidden set remains unused.
+
+## Ablation: similarity floor 0.30 (11 November 2026)
+
+Same economy configuration and cached classifications as above, with `RETRIEVAL_SIMILARITY_FLOOR=0.3`.
+Outputs: `dev500_floor0.3.json`, `dev500_floor03_decisions.db`, `val_floor0.3.json`, `val_floor03_decisions.db`. See report Section 7.8.
+The configured default remains 0.40. No 0.40 control re-run was made, so generation variation is not isolated.

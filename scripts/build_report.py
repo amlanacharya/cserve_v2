@@ -104,14 +104,17 @@ def main() -> None:
 
     text = re.sub(r"\$\$.+?\$\$|\$[^$\n]+?\$", stash, text, flags=re.S)
     body = markdown.markdown(text, extensions=["tables", "fenced_code", "sane_lists"])
+    body = body.replace('<pre><code class="language-mermaid">', '<pre class="mermaid">').replace("</code></pre>", "</code></pre>")
+    body = re.sub(r'(<pre class="mermaid">)(.*?)</code></pre>', lambda m: m.group(1) + m.group(2) + "</pre>", body, flags=re.S)
     for i, m in enumerate(math):
         body = body.replace(f"@@MATH{i}@@", html.escape(m, quote=False))
     page = f"""<!doctype html><html><head><meta charset="utf-8"><title>CloudServe Support Orchestrator - Capstone Report</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
-<style>{CSS}</style></head><body>{body}
-<script>document.addEventListener('DOMContentLoaded',()=>{{renderMathInElement(document.body,{{delimiters:[{{left:'$$',right:'$$',display:true}},{{left:'$',right:'$',display:false}}],throwOnError:false}});document.body.dataset.ready='1';}});</script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<style>{CSS}pre.mermaid {{ background: #fff; border: none; text-align: center; padding: 0; break-inside: avoid; }} p:has(+ pre.mermaid) {{ break-after: avoid; }} pre.mermaid svg {{ max-height: 215mm; width: auto; }}</style></head><body>{body}
+<script>document.addEventListener('DOMContentLoaded',async()=>{{mermaid.initialize({{startOnLoad:false,theme:'neutral',flowchart:{{htmlLabels:true}}}});await mermaid.run({{querySelector:'pre.mermaid'}});renderMathInElement(document.body,{{delimiters:[{{left:'$$',right:'$$',display:true}},{{left:'$',right:'$',display:false}}],throwOnError:false}});document.body.dataset.ready='1';}});</script>
 </body></html>"""
     OUT_HTML.write_text(page, encoding="utf-8")
     subprocess.run(["node", str(ROOT / "scripts" / "html_to_pdf.js"), str(OUT_HTML), str(OUT_PDF)], check=True)

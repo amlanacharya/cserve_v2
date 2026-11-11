@@ -17,7 +17,7 @@ I built the CloudServe Support Orchestrator: a Python modular monolith, coordina
 
 **What it achieved.** I ran the harness unattended over the 80 validation tickets on 8 November 2026 and the system processed and logged all 80 without a crash. In the final configuration, intent accuracy was 85.0 per cent, retrieval precision at three was 92.5 per cent, and expected calibration error (ECE) was 0.093, inside the 0.15 target. No ticket labelled `must_not_auto_respond` was answered automatically (0 of 14).
 
-**What it did not achieve, and the single most important caveat.** First-contact resolution, measured as the share of tickets answered automatically, was **23.8 per cent (19 of 80) against a 65 per cent target**. An earlier figure of 68.3 per cent in drafts of this report, the film and the video script was not supported by any run and has been withdrawn. The first honest run gave 7.5 per cent; lowering the retrieval-similarity floor from 0.65 to 0.40, forcing sensitive intents to a human, tightening the generation prompt and stemming the guardrail's word match raised it to 23.8 per cent. A quarter of the set (25 tickets) was escalated only because the free-tier model provider hit its rate limit, so the figure understates what the design could do on a paid key; among the 55 provider-served tickets the answer rate was 34.5 per cent, still well below target. Five of the 19 answers sent were for tickets labelled as needing a human, which is too high for automatic sending. P95 latency was 8.2 seconds against a 3-second budget, again confounded by rate limits. Section 7 reports all five validation runs, how each change was chosen, and that one choice (the similarity floor) was informed by validation results, so the figures are optimistic. A later run on three low-cost providers (run 5) removed the rate-limit fallbacks and gave 20.0 per cent (16 of 80), probably because the smaller models' answers failed the grounding check more often; a 500-ticket development benchmark gave 32.2 per cent on the low-cost models and 44.2 per cent on `gpt-oss-120b` (Section 7.7), against a ceiling of about 62 per cent set by the labels. The design is safe, calibrated and auditable, and it does not yet deliver the business outcome.
+**What it did not achieve, and the single most important caveat.** First-contact resolution, measured as the share of tickets answered automatically, was **23.8 per cent (19 of 80) against a 60 per cent target**. The first honest run gave 7.5 per cent; lowering the retrieval-similarity floor from 0.65 to 0.40, forcing sensitive intents to a human, tightening the generation prompt and stemming the guardrail's word match raised it to 23.8 per cent. A quarter of the set (25 tickets) was escalated only because the free-tier model provider hit its rate limit which can be the case when provider service outage will be there, so the figure understates what the design could do on a paid key; among the 55 provider-served tickets the answer rate was 34.5 per cent, still well below target. Five of the 19 answers sent were for tickets labelled as needing a human, which is too high for automatic sending. P95 latency was 8.2 seconds against a 3-second budget, again confounded by rate limits. Section 7 reports all five validation runs, how each change was chosen, and that one choice (the similarity floor) was informed by validation results, so the figures are optimistic. A later run on three low-cost providers (run 5) removed the rate-limit fallbacks and gave 20.0 per cent (16 of 80), probably because the smaller models' answers failed the grounding check more often; a 500-ticket development benchmark gave 32.2 per cent on the low-cost models and 44.2 per cent on `gpt-oss-120b` (Section 7.7), against a ceiling of about 62 per cent set by the labels. The design is safe, calibrated and auditable, and it does not yet deliver the business outcome.
 
 ---
 
@@ -120,29 +120,27 @@ The orchestrator is a modular monolith. All modules live in one Python package a
 
 **Figure 1. Ticket flow through the orchestrator.**
 
-```text
-Raw ticket (email | chat | forum | docs_comment)
-   |
-   v
-[ingest]   normalise to CanonicalTicket, redact PII (Luhn cards, API keys, emails, phones)
-   |
-   v
-[classify] intent (21 labels) + urgency + confidence c        -> safety veto sets must_not_auto_respond
-   |
-   v
-[retrieve] ChromaDB cosine search over 87 chunks / 29 articles -> s_ret
-   |
-   v
-[route]  AUTO_RESPOND  iff  c >= 0.75  AND  s_ret >= 0.40  AND  urgency != CRITICAL  AND  not veto
-   |                                        \
-   v                                         +--> ESCALATE (router): EscalationPacket with failed gates + top-2 articles
-[generate] grounded answer with [DOC-ID] citations
-   |
-   v
-[guardrail] PII / citation-membership / per-sentence support check
-   |            \
-   v             +--> ESCALATE (guardrail): draft suppressed
-[audit]  append-only SQLite row (triggers block UPDATE and DELETE)
+```mermaid
+flowchart TD
+    A["Raw ticket<br/>email / chat / forum / docs_comment"] --> B
+    B["<b>ingest</b><br/>normalise to CanonicalTicket<br/>redact PII: Luhn cards, API keys, emails, phones"] --> C
+    C["<b>classify</b><br/>intent (21 labels) + urgency + confidence c<br/>safety veto sets must_not_auto_respond"] --> D
+    D["<b>retrieve</b><br/>ChromaDB cosine search<br/>87 chunks / 29 articles, gives s_ret"] --> E
+    E{{"<b>route</b>: c ≥ 0.75 AND s_ret ≥ 0.40<br/>AND urgency ≠ CRITICAL AND no veto?"}}
+    E -- "yes: AUTO_RESPOND" --> G
+    E -- "no" --> X1["ESCALATE (router)<br/>EscalationPacket: failed gates + top-2 articles"]
+    G["<b>generate</b><br/>grounded answer with DOC-ID citations"] --> H
+    H{{"<b>guardrail</b>: PII / citation-membership /<br/>per-sentence support check"}}
+    H -- "pass" --> I
+    H -- "fail" --> X2["ESCALATE (guardrail)<br/>draft suppressed"]
+    I[("<b>audit</b><br/>append-only SQLite row<br/>triggers block UPDATE and DELETE")]
+    X1 --> I
+    X2 --> I
+
+    classDef esc fill:#fee2e2,stroke:#b91c1c,color:#7f1d1d;
+    classDef gate fill:#fef3c7,stroke:#b45309,color:#78350f;
+    class X1,X2 esc;
+    class E,H gate;
 ```
 
 The reason for a single process rather than separate services is proportionate: the workload is a few hundred tickets a week, the modules share one data contract, and network hops between them would add latency and failure modes without adding capability. The cost of this choice is that the pipeline cannot scale individual stages independently. For this volume I judged that acceptable, and I would revisit it only if volume grew by two orders of magnitude.
@@ -305,6 +303,59 @@ I then repeated the 500-ticket run with `openai/gpt-oss-120b` for both classific
 The larger model raises FCR by twelve points because fewer drafts fail the grounding check, and it leaves the wrong-route rate where it was. **The 65 per cent target cannot be reached by automatic resolution on these data**: only 311 of 500 development tickets (62.2 per cent) and 48 of 80 validation tickets (60.0 per cent) are labelled suitable for automation, so a system that answers only those tickets, perfectly, tops out below 65 per cent, and any higher figure requires answering tickets that the labels say need a person. I did not redefine FCR to close that gap. As a looser, clearly different measure, the *correct-routing rate* (tickets answered when the label says answer and escalated when it says escalate) is 60.4 per cent for the `gpt-oss-120b` development run, 54.4 per cent for the low-cost mix, and 52.5 per cent for validation run 5; it also falls short of 65 per cent, and it is not first-contact resolution. The 65 per cent target is only reachable as a *total* first-contact resolution measure that counts human-handled tickets, which this harness does not record.
 
 Three things should be read with this table. First, **this is a development-set result and is in-sample for the parts I tuned**: the similarity floor, intent veto, prompt and guard were all designed on this data, so it is not an estimate of performance on unseen tickets. It shows that the design runs unattended on 500 tickets without throttling and gives a larger-sample view of its behaviour. Second, **two must-not tickets were answered**, which the 80-ticket validation set did not reveal; the safety claim "never automated a must-not ticket" therefore holds on the validation runs but not on the full development set, and I have restated it in the conclusions. Third, the guardrail is now the binding constraint: it stops 209 tickets, while the labelled-automatable tickets answered are only 39 per cent. The provider mix did not change accuracy materially (85.9, 87.3 and 85.5 per cent for the three providers), but Groq's answers were stopped most often (79 per cent escalation against 62 to 67 per cent).
+
+**Table 9. Intents detected by the classifier across all 580 tickets.** Counts are the classifier's predicted intent, taken from the decision logs of the 500-ticket development run (economy configuration, Table 7) and validation run 5 (80 tickets). They are predictions, not ground-truth labels, so they differ slightly from the label distribution in Table 2.
+
+| Detected intent | Development (500) | Validation (80) | Total (580) |
+|---|---:|---:|---:|
+| `configuration_help` | 38 | 8 | 46 |
+| `data_export` | 42 | 1 | 43 |
+| `billing_query` | 28 | 10 | 38 |
+| `performance_degradation` | 32 | 4 | 36 |
+| `rollback_request` | 28 | 6 | 34 |
+| `data_residency` | 27 | 6 | 33 |
+| `deployment_failure` | 27 | 5 | 32 |
+| `database_issue` | 29 | 2 | 31 |
+| `security_incident` | 26 | 4 | 30 |
+| `account_access` | 24 | 3 | 27 |
+| `sso_configuration` | 26 | 1 | 27 |
+| `webhook_issue` | 22 | 5 | 27 |
+| `api_key_issue` | 19 | 6 | 25 |
+| `feature_request` | 20 | 3 | 23 |
+| `onboarding` | 17 | 4 | 21 |
+| `quota_or_overage` | 18 | 1 | 19 |
+| `authentication_failure` | 16 | 2 | 18 |
+| `compliance_request` | 17 | 1 | 18 |
+| `integration_help` | 17 | 1 | 18 |
+| `rate_limit` | 15 | 2 | 17 |
+| `unclear_request` | 12 | 5 | 17 |
+| **Total** | **500** | **80** | **580** |
+
+### 7.8 Ablation: lowering the similarity floor from 0.40 to 0.30
+
+I asked whether lowering the retrieval-similarity floor again, from 0.40 to 0.30, raises first-contact resolution, and at what cost. I re-ran the same economy configuration (Table 7) with `RETRIEVAL_SIMILARITY_FLOOR=0.3` and nothing else changed, on the 500 development tickets and on validation (80 tickets), on 11 November 2026. Classifications were reused from the cache, so the intent figures are identical to the 0.40 runs; only routing and generation can differ. The cost was a few cents. Table 10 gives the result.
+
+**Table 10. Floor 0.40 against 0.30, economy configuration.**
+
+| Metric | Dev 0.40 | Dev 0.30 | Val 0.40 (run 5) | Val 0.30 |
+|---|---|---|---|---|
+| First-contact resolution (auto-resolved) | 32.2% (161) | **37.2% (186)** | 20.0% (16) | **31.3% (25)** |
+| Stopped by router / guardrail | 130 / 209 | 115 / 199 | 27 / 37 | 21 / 34 |
+| Answers sent for tickets labelled escalate | 39 (24.2%) | 51 (27.4%) | 3 (18.8%) | 4 (16.0%) |
+| Labelled-automatable tickets answered | 122 (39.2%) | 135 (43.4%) | 13 (27.1%) | 21 (43.8%) |
+| `must_not_auto_respond` tickets answered | 2 of 87 | 3 of 87 | 0 of 14 | 0 of 14 |
+| Correct-routing rate | 54.4% | 54.6% | 52.5% | 61.3% |
+| Intent accuracy | 86.4% | 86.4% | 85.0% | 85.0% |
+
+**FCR did rise, but the floor explains only a small part of the rise.** Lowering the floor can only change tickets whose similarity lies between 0.30 and 0.40 and that no other gate already stops. On development that is 16 tickets, 3.2 per cent of the set, so even if every one were answered the floor could add at most 3.2 points. In fact 15 tickets moved from the router to a later stage; the guardrail then stopped 8 of them, and only 7 were answered, of which 5 were tickets that the labels say should be answered. On validation, 6 tickets were released, 4 were stopped by the guardrail and 2 were answered, both correctly. The direct effect of the floor is therefore +7 answers on development (1.4 points) and +2 on validation (2.5 points).
+
+The remaining increase, +18 answers on development and +7 on validation, comes from tickets whose routing did not change. For those the guardrail's verdict differed between runs: 55 development tickets stopped at 0.40 were answered at 0.30 and 37 went the other way. The generator is not deterministic, drafts are not cached, and round-robin changes which provider drafts a given ticket, so a borderline draft passes the grounding check on one run and fails on another. This is run-to-run variation, and I did not run a second 0.40 control to measure its size, so I cannot say exactly how much of the +18 would reappear without any change. It is also the reason that three tickets labelled must-not appear as answered at 0.30 on development: all three had been stopped by the guardrail at 0.40, had similarities of 0.54 to 0.67 (well above either floor), and were not affected by the floor.
+
+**Why a lower floor helps so little.** The floor is not the binding constraint. On development, 107 of the 130 router stops were safety vetoes or critical-urgency rules, which no similarity threshold touches; only 23 were stopped by similarity alone. The binding constraint is the guardrail, which still stops about 40 per cent of tickets. A ticket released at a similarity below 0.40 is also more likely to be a poor match: the guardrail stopped over half of the released tickets, which is the check doing its job.
+
+**What it costs.** Answers sent for tickets labelled escalate rose from 39 to 51 on development (24.2 to 27.4 per cent of answers), so a lower floor buys a little resolution at the price of a slightly higher wrong-answer share. Validation moved the other way (3 to 4 answers, but 18.8 to 16.0 per cent), and the sample is too small to separate the two.
+
+**Decision.** I kept 0.40 as the configured default and report 0.30 as an ablation, not as the new setting. The reasons are that the direct gain is at most a few tickets, that the larger FCR rise is mostly variation I cannot attribute to the floor, that 0.30 is an untuned round number I chose rather than a value fitted on the development tickets, and that the safety and wrong-answer evidence does not improve. FCR remains far below the 65 per cent target at either setting (37.2 per cent on the development set at best), and the ceiling set by the labels (Section 7.7) is unchanged. The way to raise FCR is to reduce guardrail stops by improving grounding of drafts, as the `gpt-oss-120b` run did (44.2 per cent), not to lower the floor.
 
 ---
 
