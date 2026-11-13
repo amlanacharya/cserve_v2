@@ -1,6 +1,9 @@
 import sqlite3
 from pathlib import Path
 from typing import Any
+from datetime import datetime, timezone
+from typing import Literal
+from pydantic import BaseModel
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from src.core.config import get_settings
@@ -92,3 +95,46 @@ def test_database_tamper() -> dict[str, str]:
             "status": "immutable_protected",
             "message": f"SQLite Trigger Aborted Mutation: {str(e)}"
         }
+
+
+class AgentFeedback(BaseModel):
+    agent_id: str
+    agent_tier: Literal["TIER_1", "TIER_2", "TECH_WRITER"]
+    agent_action: Literal["ACCEPTED_AS_IS", "EDITED_AND_SENT", "REJECTED_ESCALATED", "RESOLVED_BY_TIER2"]
+    actual_true_intent: str | None = None
+    flag_for_tech_writer: bool = False
+    failure_attribution: Literal["DOC_MISSING", "DOC_OUTDATED", "AI_MISINTERPRETED", "NONE"] = "NONE"
+    agent_notes: str | None = None
+    customer_csat_score: int | None = None
+
+
+_FEEDBACK_DDL = """CREATE TABLE IF NOT EXISTS agent_feedback (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, ticket_id TEXT NOT NULL, agent_id TEXT NOT NULL,
+    agent_tier TEXT NOT NULL, agent_action TEXT NOT NULL, actual_true_intent TEXT,
+    flag_for_tech_writer INTEGER NOT NULL, failure_attribution TEXT NOT NULL, agent_notes TEXT,
+    customer_csat_score INTEGER CHECK (customer_csat_score IS NULL OR customer_csat_score BETWEEN 1 AND 5),
+    created_at TEXT NOT NULL)"""
+
+
+@app.post("/tickets/{ticket_id}/feedback")
+def submit_feedback(ticket_id: str, fb: AgentFeedback) -> dict[str, str]:
+    """Records a human agent's verdict on a decision. Separate table: decision_log stays append-only and unchanged."""
+    if fb.customer_csat_score is not None and not 1 <= fb.customer_csat_score <= 5:
+        raise HTTPException(status_code=422, detail="customer_csat_score must be 1..5")
+    db_path = Path(get_settings().decision_log_path)
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(db_path), timeout=5.0)
+    try:
+        conn.execute(_FEEDBACK_DDL)
+        conn.execute(
+            "INSERT INTO agent_feedback (ticket_id, agent_id, agent_tier, agent_action, actual_true_intent, "
+            "flag_for_tech_writer, failure_attribution, agent_notes, customer_csat_score, created_at) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?)",
+            (ticket_id, fb.agent_id, fb.agent_tier, fb.agent_action, fb.actual_true_intent,
+             int(fb.flag_for_tech_writer), fb.failure_attribution, fb.agent_notes,
+             fb.customer_csat_score, datetime.now(timezone.utc).isoformat()),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return {"status": "recorded", "ticket_id": ticket_id}

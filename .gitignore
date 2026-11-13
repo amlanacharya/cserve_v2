@@ -83,3 +83,8 @@ docs/video_recording_script.md
 # local tooling
 graft/
 .scratch/
+
+# Presenter voice material and generated segments stay local; only final videos are tracked
+01_Video/voice_sample*.wav
+01_Video/voice_sample*.mp3
+01_Video/voiceover/

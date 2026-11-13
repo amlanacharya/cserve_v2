@@ -16,6 +16,13 @@ The system is coordinated by a LangGraph `StateGraph`, wrapped with `@safe_node`
 
 Providers are optional and configured in `.env` (see `.env.example`): `PROVIDER_ORDER`, `PROVIDER_STRATEGY=roundrobin`, `MAX_SPEND_USD`.
 
+## Customer envelope, priority and feedback (added after the measured runs)
+
+- `customer_message` on every auto-resolved result: the validated draft wrapped by `src/generation/formatter.py` with the machine disclaimer and a `Reference: [DOC-ID: Title]` footer. `final_response` (what the guardrails validated and the metrics count) is unchanged.
+- `priority_score` / `priority_level` on every result (`src/routing/priority.py`): urgency base score plus a tier bonus. There is no live queue, so no `queue_position`.
+- `POST /tickets/{ticket_id}/feedback`: stores a human agent's verdict in a separate `agent_feedback` table. `decision_log` stays append-only and untouched.
+- These do not change routing, so the reported FCR/ECE/latency numbers still apply.
+
 ---
 
 ## Acceptance Criteria Traceability (A1–A12)

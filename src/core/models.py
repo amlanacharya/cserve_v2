@@ -43,6 +43,9 @@ class ProcessedTicketResult(BaseModel):
     channel: str
     final_disposition: Disposition
     final_response: str | None = None
+    customer_message: str | None = None  # disclaimer + draft + reference footer (FR-05, FR-03)
+    priority_score: int = 50  # FR-08
+    priority_level: str = "medium"
     citations: list[str] = Field(default_factory=list)
     escalation_packet: EscalationPacket | None = None
     inferred_intent: str

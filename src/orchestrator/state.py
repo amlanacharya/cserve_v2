@@ -12,7 +12,9 @@ from src.core.types import (
     RoutingAction,
     Urgency,
 )
+from src.generation.formatter import format_customer_message
 from src.routing.escalation import build_escalation_packet
+from src.routing.priority import compute_priority
 
 
 class AgentState(TypedDict, total=False):
@@ -180,7 +182,17 @@ class RunSnapshot(BaseModel):
 
     def to_result(self, raw_ticket: Mapping[str, Any], latency_ms: float) -> ProcessedTicketResult:
         ticket = self.canonical_ticket
+        tier = ticket.metadata.get("customer_tier") if ticket else raw_ticket.get("customer_tier")
+        score, level = compute_priority(self.urgency, tier)
+        message = (
+            format_customer_message(self.final_response, self.citations, self.retrieved_docs)
+            if self.final_response and self.final_disposition == "AUTO_RESOLVED"
+            else None
+        )
         return ProcessedTicketResult(
+            customer_message=message,
+            priority_score=score,
+            priority_level=level,
             ticket_id=ticket.ticket_id if ticket else str(raw_ticket.get("ticket_id", "UNKNOWN")),
             channel=ticket.channel if ticket else str(raw_ticket.get("channel", "email")),
             final_disposition=self.final_disposition,

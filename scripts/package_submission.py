@@ -33,6 +33,8 @@ def main() -> None:
     with zipfile.ZipFile(OUT, "w", zipfile.ZIP_DEFLATED) as z:
         if args.video:
             z.write(args.video, f"01_Video/{NAME}_Capstone_Video.mp4")
+            demo = ROOT / "01_Video" / "in_app_demo_live_voiced.mp4"
+            z.write(demo if demo.exists() else ROOT / "01_Video" / "in_app_demo_live.mp4", f"01_Video/{NAME}_In_App_Demo.mp4")
         else:
             film = sorted((ROOT / "hyperframes_film" / "renders").glob("film_*.mp4"))
             if film:
