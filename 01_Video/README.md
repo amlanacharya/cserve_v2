@@ -106,3 +106,11 @@ To assemble the complete 20-minute capstone submission with your webcam talking-
 - **18-Minute Second-by-Second Narration Script:** [hyperframes_film/DIRECTOR_SCRIPT.md](file:///c:/Users/amlan/Downloads/cloudserve/FDE_Capstone_Complete/Capstone_Pack/hyperframes_film/DIRECTOR_SCRIPT.md)
 - **Master Composition:** [hyperframes_film/index.html](file:///c:/Users/amlan/Downloads/cloudserve/FDE_Capstone_Complete/Capstone_Pack/hyperframes_film/index.html)
 - **Sub-Compositions:** [hyperframes_film/compositions/](file:///c:/Users/amlan/Downloads/cloudserve/FDE_Capstone_Complete/Capstone_Pack/hyperframes_film/compositions/)
+
+---
+
+## Voiced versions (final)
+
+- `hyperframes_presentation_voiced.mp4` (16:20, 1080p): the film re-timed to its narration (each act lasts as long as its voiceover; Act VI keeps the full 210 s demo), with the presenter's voice. Supersedes `hyperframes_presentation_18min*.mp4`.
+- `in_app_demo_live_voiced.mp4` (3:28): the live dashboard recording with narration aligned to each on-screen scenario, plus a caption in scenario 6 showing the real normalizer output for the PII ticket.
+- Built by `scripts/generate_voiceover.py`, `scripts/retime_film.py` and `scripts/assemble_voiceover.py`; narration text is `hyperframes_film/DIRECTOR_SCRIPT.md`.

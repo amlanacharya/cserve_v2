@@ -122,7 +122,7 @@
       id="root"
       data-composition-id="main"
       data-start="0"
-      data-duration="1080"
+      data-duration="980.00"
       data-width="1920"
       data-height="1080"
     >
@@ -156,8 +156,8 @@
         class="clip"
         data-composition-id="act1"
         data-composition-src="compositions/act1_crisis.html"
-        data-start="0"
-        data-duration="150"
+        data-start="0.00"
+        data-duration="122.00"
         data-track-index="1"
         data-track-kind="graphics"
         data-width="1920"
@@ -170,8 +170,8 @@
         class="clip"
         data-composition-id="act2"
         data-composition-src="compositions/act2_architecture.html"
-        data-start="150"
-        data-duration="150"
+        data-start="122.00"
+        data-duration="125.00"
         data-track-index="1"
         data-track-kind="graphics"
         data-width="1920"
@@ -184,8 +184,8 @@
         class="clip"
         data-composition-id="act3"
         data-composition-src="compositions/act3_ingestion.html"
-        data-start="300"
-        data-duration="150"
+        data-start="247.00"
+        data-duration="123.00"
         data-track-index="1"
         data-track-kind="graphics"
         data-width="1920"
@@ -198,8 +198,8 @@
         class="clip"
         data-composition-id="act4"
         data-composition-src="compositions/act4_retrieval.html"
-        data-start="450"
-        data-duration="150"
+        data-start="370.00"
+        data-duration="131.00"
         data-track-index="1"
         data-track-kind="graphics"
         data-width="1920"
@@ -212,8 +212,8 @@
         class="clip"
         data-composition-id="act5"
         data-composition-src="compositions/act5_routing.html"
-        data-start="600"
-        data-duration="150"
+        data-start="501.00"
+        data-duration="135.00"
         data-track-index="1"
         data-track-kind="graphics"
         data-width="1920"
@@ -226,8 +226,8 @@
         class="clip"
         data-composition-id="act6"
         data-composition-src="compositions/act6_demo.html"
-        data-start="750"
-        data-duration="210"
+        data-start="636.00"
+        data-duration="210.00"
         data-track-index="1"
         data-track-kind="graphics"
         data-width="1920"
@@ -240,8 +240,8 @@
         class="clip"
         data-composition-id="act7"
         data-composition-src="compositions/act7_results.html"
-        data-start="960"
-        data-duration="120"
+        data-start="846.00"
+        data-duration="134.00"
         data-track-index="1"
         data-track-kind="graphics"
         data-width="1920"
@@ -252,23 +252,25 @@
     <script>
       const tl = gsap.timeline({ paused: true });
 
-      // Progress Bar across 1080 seconds
-      tl.to("#nav-progress-bar", { width: "100%", duration: 1080, ease: "none" }, 0);
+      // Progress Bar across 976 seconds
+      tl.to("#nav-progress-bar", { width: "100%", duration: 975.94, ease: "none" }, 0);
 
-      // Section Highlights
-      tl.set("#nav-s1", { className: "nav-item active" }, 0);
-      tl.set("#nav-s1", { className: "nav-item" }, 150);
-      tl.set("#nav-s2", { className: "nav-item active" }, 150);
-      tl.set("#nav-s2", { className: "nav-item" }, 300);
-      tl.set("#nav-s3", { className: "nav-item active" }, 300);
-      tl.set("#nav-s3", { className: "nav-item" }, 450);
-      tl.set("#nav-s4", { className: "nav-item active" }, 450);
-      tl.set("#nav-s4", { className: "nav-item" }, 600);
-      tl.set("#nav-s5", { className: "nav-item active" }, 600);
-      tl.set("#nav-s5", { className: "nav-item" }, 750);
-      tl.set("#nav-s6", { className: "nav-item active" }, 750);
-      tl.set("#nav-s6", { className: "nav-item" }, 960);
-      tl.set("#nav-s7", { className: "nav-item active" }, 960);
+      // Section Highlights (re-timed to narration)
+      tl.set("#nav-s1", { className: "nav-item active" }, 0.00);
+      tl.set("#nav-s1", { className: "nav-item" }, 122.00);
+      tl.set("#nav-s2", { className: "nav-item active" }, 122.00);
+      tl.set("#nav-s2", { className: "nav-item" }, 247.00);
+      tl.set("#nav-s3", { className: "nav-item active" }, 247.00);
+      tl.set("#nav-s3", { className: "nav-item" }, 370.00);
+      tl.set("#nav-s4", { className: "nav-item active" }, 370.00);
+      tl.set("#nav-s4", { className: "nav-item" }, 501.00);
+      tl.set("#nav-s5", { className: "nav-item active" }, 501.00);
+      tl.set("#nav-s5", { className: "nav-item" }, 636.00);
+      tl.set("#nav-s6", { className: "nav-item active" }, 636.00);
+      tl.set("#nav-s6", { className: "nav-item" }, 846.00);
+      tl.set("#nav-s7", { className: "nav-item active" }, 846.00);
+
+
 
       window.__timelines = window.__timelines || {};
       window.__timelines["main"] = tl;

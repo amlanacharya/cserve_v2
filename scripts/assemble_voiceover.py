@@ -36,6 +36,17 @@ def fit(seg: dict) -> tuple[Path, float]:
     return dst, raw / tempo
 
 
+def mix(items: list[tuple[Path, float]], total: float, out: Path) -> None:
+    inputs, filters, labels = [], [], []
+    for i, (wav, start) in enumerate(items):
+        inputs += ["-i", str(wav)]
+        ms = int(start * 1000)
+        filters.append(f"[{i}:a]adelay={ms}|{ms}[a{i}]")
+        labels.append(f"[a{i}]")
+    graph = f"{''.join(labels)}amix=inputs={len(items)}:normalize=0,loudnorm=I=-16:TP=-1.5,apad=whole_dur={total},atrim=0:{total}[out]"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", *inputs, "-filter_complex", ";".join(filters + [graph]), "-map", "[out]", "-ar", "48000", str(out)], check=True)
+
+
 def build_track(segs: list[dict], origin: int, total: float, out: Path) -> list[str]:
     inputs, filters, labels, problems = [], [], [], []
     for i, s in enumerate(segs):
@@ -96,10 +107,21 @@ def add_pii_caption(src: Path, dst: Path, t0: float, t1: float, film: bool) -> N
 
 
 def main() -> None:
+    import json
     segs = parse_segments()
-    film_v = VID / "hyperframes_presentation_18min.mp4"
+    sched = json.loads((OUT / "schedule.json").read_text(encoding="utf-8"))
+    film_v = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "hyperframes_film/renders/film_retimed.mp4"
     demo_v = VID / "in_app_demo_live.mp4"
-    p1 = build_track(segs, 0, duration(film_v), OUT / "narration_full.wav")
+    act6 = sched["acts"]["6"]["start"]
+    items = [(OUT / f"nat_{int(n):02d}.wav", t) for n, t in sched["seg_start"].items()]
+    p1 = []
+    for sgm in (x for x in segs if 750 <= x["start"] < 960):  # demo narration follows the on-screen scenario marks
+        dst, d = fit(sgm)
+        if d > sgm["end"] - sgm["start"]:
+            p1.append(f"seg {sgm['n']} overruns its scene")
+        items.append((dst, act6 + sgm["start"] - 750 + FILM_START_PAD))
+    total = duration(film_v)
+    mix(items, total, OUT / "narration_full.wav")
     mux(film_v, OUT / "narration_full.wav", OUT / "film_nocap.mp4")
     demo = [s for s in segs if 750 <= s["start"] < 960]  # Act VI is the live demo
     p2 = build_track(demo, 750, duration(demo_v), OUT / "narration_demo.wav")
@@ -108,7 +130,7 @@ def main() -> None:
     marks = {m["id"]: m for m in json.loads((ROOT / "hyperframes_film/assets/in_app_demo.marks.json").read_text())["marks"]}
     t0, t1 = marks["pii"]["start"] + 4, marks["pii"]["end"] - 0.5  # after the result has rendered
     add_pii_caption(OUT / "demo_nocap.mp4", VID / "in_app_demo_live_voiced.mp4", t0, t1, film=False)
-    add_pii_caption(OUT / "film_nocap.mp4", VID / "hyperframes_presentation_18min_voiced.mp4", 750 + t0, 750 + t1, film=True)
+    add_pii_caption(OUT / "film_nocap.mp4", VID / "hyperframes_presentation_voiced.mp4", act6 + t0, act6 + t1, film=True)
     for p in p1 + p2:
         print("WARN", p)
     print("done", "with warnings" if p1 + p2 else "clean")
