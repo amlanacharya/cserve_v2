@@ -2,7 +2,7 @@
 
     python scripts/assemble_voiceover.py
 
-Outputs (01_Video/): hyperframes_presentation_18min_voiced.mp4 and in_app_demo_live_voiced.mp4.
+Outputs (01_Video/): project_submission_full.mp4 and project_app_demo.mp4 (dead air over 1.5 s cut by tighten_silence.py).
 Each segment is time-fitted to its window: sped up (max 1.15x) if it overruns, slowed (min 0.88x)
 to use slack, so delivery stays natural. Overruns beyond the cap are reported, never truncated.
 """
@@ -111,7 +111,7 @@ def main() -> None:
     segs = parse_segments()
     sched = json.loads((OUT / "schedule.json").read_text(encoding="utf-8"))
     film_v = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "hyperframes_film/renders/film_retimed.mp4"
-    demo_v = VID / "in_app_demo_live.mp4"
+    demo_v = ROOT / "hyperframes_film/assets/in_app_demo.mp4"
     act6 = sched["acts"]["6"]["start"]
     items = [(OUT / f"nat_{int(n):02d}.wav", t) for n, t in sched["seg_start"].items()]
     p1 = []
@@ -129,8 +129,13 @@ def main() -> None:
     import json
     marks = {m["id"]: m for m in json.loads((ROOT / "hyperframes_film/assets/in_app_demo.marks.json").read_text())["marks"]}
     t0, t1 = marks["pii"]["start"] + 4, marks["pii"]["end"] - 0.5  # after the result has rendered
-    add_pii_caption(OUT / "demo_nocap.mp4", VID / "in_app_demo_live_voiced.mp4", t0, t1, film=False)
-    add_pii_caption(OUT / "film_nocap.mp4", VID / "hyperframes_presentation_voiced.mp4", act6 + t0, act6 + t1, film=True)
+    add_pii_caption(OUT / "demo_nocap.mp4", OUT / "demo_cap.mp4", t0, t1, film=False)
+    add_pii_caption(OUT / "film_nocap.mp4", OUT / "film_cap.mp4", act6 + t0, act6 + t1, film=True)
+    import subprocess
+    tight = ROOT / "scripts" / "tighten_silence.py"
+    seams = [str(v["start"]) for v in sched["acts"].values()]
+    subprocess.run([sys.executable, str(tight), str(OUT / "demo_cap.mp4"), str(VID / "project_app_demo.mp4")], check=True)
+    subprocess.run([sys.executable, str(tight), str(OUT / "film_cap.mp4"), str(VID / "project_submission_full.mp4"), *seams], check=True)
     for p in p1 + p2:
         print("WARN", p)
     print("done", "with warnings" if p1 + p2 else "clean")

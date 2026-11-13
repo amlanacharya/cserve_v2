@@ -1,116 +1,21 @@
-# HyperFrames 18-Minute Architectural Film & In-App Demo Runbook
+# 01_Video
 
-**Production Title:** CloudServe Support Orchestrator — Architectural Film & Live Demo  
-**Director & Lead Engineer:** Amlan Acharya  
-**Design Palette:** Executive White & Royal Blue Enterprise Theme  
-**Framework:** [HeyGen HyperFrames](https://github.com/heygen-com/hyperframes) (`npx hyperframes`)  
-**Canvas Resolution:** 1920 &times; 1080 (1080p Full HD) &bull; 30 fps  
-**Film Duration:** Exactly 18 Minutes (1,080 Seconds / 32,400 Frames)  
-**Total Video with Webcam (Clipchamp):** 20 Minutes (2:00 Intro + 18:00 Core Presentation + 2:00 Outro)  
+Two voiced videos, narrated in the presenter's cloned voice (Chatterbox TTS, local):
 
----
+| File | Length | What it is |
+|---|---|---|
+| `project_submission_full.mp4` | about 15:00, 1080p | The full film: Acts I–VII (problem, architecture, ingestion and PII, retrieval, dual gates and cascade, the live in-app demo, measured results). |
+| `project_app_demo.mp4` | about 3:09, 1080p | The live dashboard demo alone, with narration aligned to each on-screen scenario and a caption in scenario 6 showing the real PII redaction output. |
 
-## 1. Video Deliverables Summary
+Dead air longer than 1.5 s is cut from both (audio and video cut together, so narration stays in sync with the slides).
 
-This directory contains two complementary video artifacts designed for immediate review and Clipchamp splicing:
+## How they are built
 
-1. **`01_Video/in_app_demo_live.mp4`** (1080p, about 3.5 min, silent):
-   - **Unedited screen recording** of the running FastAPI dashboard (`http://127.0.0.1:8000/dashboard`), driven by Puppeteer (`scripts/record_in_app_demo.js`).
-   - Plays the six quick scenarios (grounded answer, safety veto, two router escalations, guardrail veto, PII/Luhn card) then the SQLite tamper test and the audit table. Each scenario waits for the real API response; only the "processing" wait is compressed.
-   - The same clip is embedded in the HyperFrames film as Act VI (`hyperframes_film/assets/in_app_demo.mp4`), replacing the earlier hand-built mock.
+1. `scripts/generate_voiceover.py` synthesizes each narration segment from `hyperframes_film/DIRECTOR_SCRIPT.md` (needs the Chatterbox environment and a voice sample, which are not in the repo).
+2. `scripts/retime_film.py` sets each act's length to its narration and patches `hyperframes_film/index.html`.
+3. Render the film: `cd hyperframes_film && npx hyperframes@0.8.222 render -o renders/film_retimed.mp4`.
+4. `scripts/assemble_voiceover.py` mixes the audio, adds the PII caption, and calls `scripts/tighten_silence.py` to write the two files above.
 
-2. **`01_Video/hyperframes_presentation_18min.mp4`** (Master 18:00 Film):
-   - **Comprehensive Executive Film** rendered directly via HeyGen HyperFrames.
-   - Built with an executive White & Slate ground (`#f8fafc` / `#ffffff`), deep navy typography (`#0f172a`), and royal blue accenting (`#1d4ed8` / `#2563eb`), removing all informal rehearsal kickers.
-   - Seamlessly integrates the full architectural thesis, multi-channel ingestion, bounded chunking, dual gates, the real recorded in-app control plane (Act VI), and the measured validation results (Act VII: FCR 23.8% on validation and 44.2% on the 500-ticket development benchmark, correct-routing shown separately, target not met).
+The silent source recording is `hyperframes_film/assets/in_app_demo.mp4` (produced by `scripts/record_in_app_demo.js`; scenario timings in `in_app_demo.marks.json`). It was recorded with the first configuration (similarity floor 0.65); the report's current numbers are in Section 7.10.
 
----
-
-## 2. Directorial Structure & Pacing Map
-
-The 18-minute core film is structured into 7 distinct sections, adhering to the HeyGen HyperFrames sub-composition contract (`index.html` + `compositions/act*.html`):
-
-| Section | Identifier | Time Offset | Duration | Core Visuals & Demonstration Content |
-|---|---|---|---|---|
-| **Section 1** | `act1_crisis.html` | 0:00 – 2:30 | 150s | **Problem Discovery & Vocabulary Mismatch:** The 42.0% FCR crisis vs 65.0% mandate; 500-ticket EDA; colloquial query divergence. |
-| **Section 2** | `act2_architecture.html` | 2:30 – 5:00 | 150s | **System Design Thesis:** Clean Architecture domain model; why microservices fail; LangGraph StateGraph & `@safe_node` defensive isolation. |
-| **Section 3** | `act3_ingestion.html` | 5:00 – 7:30 | 150s | **Ingestion & PII Defense:** Multi-channel normalizer (`email`, `chat`, `forum`, `docs_comment`); Luhn algorithm checksum validation; API key regex redaction. |
-| **Section 4** | `act4_retrieval.html` | 7:30 – 10:00 | 150s | **Semantic Retrieval & Chunking:** Bounded H2/H3 chunking (87 chunks across 29 articles); ChromaDB 0.3.21 dense embeddings; Pydantic v2 backward compatibility shim. |
-| **Section 5** | `act5_routing.html` | 10:00 – 12:30 | 150s | **Orthogonal Dual Gates & Cascade:** Independent dual gates ($c \ge 0.75, s_{\text{ret}} \ge 0.65$); XML prompt sandboxing; 3-tier cascade (OpenRouter &rarr; Gemini &rarr; Offline Mock). |
-| **Section 6** | `act6_demo.html` | 12:30 – 16:00 | 210s | **Live In-App Control Plane:** real screen recording of the dashboard in a browser frame with a synchronised scenario sidebar (auto-response, safety veto, gate escalations, guardrail veto, PII/Luhn, SQLite tamper test, audit log). |
-| **Section 7** | `act7_results.html` | 16:00 – 18:00 | 120s | **Empirical Benchmarks & Retrospective:** Measured results: 23.8% FCR on validation (7.5% first run; 20.0% on run 5), 44.2% FCR on the 500-ticket development benchmark, correct-routing rate vs FCR, label ceiling of 60-62% (target 65% not met), ECE 0.093, P95 8.2 s (budget not met), next steps. |
-
----
-
-## 3. Running the Live Application & HyperFrames Studio
-
-### 3.1 Launching the Live FastAPI Web Dashboard
-The web application provides a full graphical control plane with one-click test scenarios and live SQLite inspection:
-
-```powershell
-# Start the server (if not already running)
-.\.venv\Scripts\uvicorn src.api:app --host 127.0.0.1 --port 8000
-```
-Open your browser to: **`http://127.0.0.1:8000/dashboard`** (or `http://127.0.0.1:8000/`).
-
-### 3.2 HyperFrames Live Studio Preview
-To inspect or interact with the seekable 18-minute presentation timeline:
-
-```bash
-cd hyperframes_film
-npm run dev
-# or: npx hyperframes preview
-```
-
-### 3.3 Quality Gate Validation
-```bash
-cd hyperframes_film
-npm run check
-```
-*(Last run 8 Nov 2026: 0 errors; remaining warnings are text-size and contrast notes.)*
-
-### 3.4 Re-recording Live In-App Video
-To re-run the automated headless browser demo recording:
-
-```bash
-node scripts/record_in_app_demo.js
-```
-This generates `01_Video/in_app_demo_live.mp4` directly using Puppeteer and FFmpeg.
-
----
-
-## 4. Microsoft Clipchamp Assembly Workflow
-
-To assemble the complete 20-minute capstone submission with your webcam talking-head clips:
-
-1. **Webcam Intro Clip (0:00 – 2:00)**:
-   - Record yourself on webcam (Clipchamp or Windows Camera).
-   - Script guide: *"Hi, I'm Amlan Acharya, and this is the CloudServe Support Orchestrator Capstone..."*
-   - Highlight the 42% baseline FCR crisis, SLA penalties, and executive mandate for 65% FCR.
-2. **Main Film & In-App Demo Clip (2:00 – 18:00)**:
-   - Import `01_Video/hyperframes_presentation_18min.mp4` (or splice in `01_Video/in_app_demo_live.mp4` for Act 6).
-   - Follow the minute-by-minute speaking cues in [hyperframes_film/DIRECTOR_SCRIPT.md](file:///c:/Users/amlan/Downloads/cloudserve/FDE_Capstone_Complete/Capstone_Pack/hyperframes_film/DIRECTOR_SCRIPT.md).
-3. **Webcam Outro Clip (18:00 – 20:00)**:
-   - Record yourself reflecting on key lessons: why the safe path held (calibration ECE 0.093, no must-not ticket automated on validation; 1 to 2 of 87 on the development benchmark) while the FCR target was missed (23.8%), what the similarity-floor finding taught you, and the value of tamper-evident audit logs.
-4. **Assembly & Export in Clipchamp**:
-   - Open **Microsoft Clipchamp** &rarr; New Project (16:9, 1080p).
-   - Arrange: `[Webcam Intro (2m)]` &rarr; `[HyperFrames Film & Demo (18m)]` &rarr; `[Webcam Outro (2m)]`.
-   - Add a subtle 0.5s cross-dissolve transition between clips.
-   - Click **Export &rarr; 1080p (HD)** and save to `01_Video/AmlanAcharya_Capstone_Presentation.mp4`.
-
----
-
-## 5. Documentation References
-
-- **Director's Production Specification:** [hyperframes_film/SPEC.md](file:///c:/Users/amlan/Downloads/cloudserve/FDE_Capstone_Complete/Capstone_Pack/hyperframes_film/SPEC.md)
-- **18-Minute Second-by-Second Narration Script:** [hyperframes_film/DIRECTOR_SCRIPT.md](file:///c:/Users/amlan/Downloads/cloudserve/FDE_Capstone_Complete/Capstone_Pack/hyperframes_film/DIRECTOR_SCRIPT.md)
-- **Master Composition:** [hyperframes_film/index.html](file:///c:/Users/amlan/Downloads/cloudserve/FDE_Capstone_Complete/Capstone_Pack/hyperframes_film/index.html)
-- **Sub-Compositions:** [hyperframes_film/compositions/](file:///c:/Users/amlan/Downloads/cloudserve/FDE_Capstone_Complete/Capstone_Pack/hyperframes_film/compositions/)
-
----
-
-## Voiced versions (final)
-
-- `hyperframes_presentation_voiced.mp4` (15:53, 1080p): the film re-timed to its narration (each act lasts as long as its voiceover; Act VI keeps the full 210 s demo), with the presenter's voice. Supersedes `hyperframes_presentation_18min*.mp4`.
-- `in_app_demo_live_voiced.mp4` (3:28): the live dashboard recording with narration aligned to each on-screen scenario, plus a caption in scenario 6 showing the real normalizer output for the PII ticket.
-- Built by `scripts/generate_voiceover.py`, `scripts/retime_film.py` and `scripts/assemble_voiceover.py`; narration text is `hyperframes_film/DIRECTOR_SCRIPT.md`.
+The narration is synthetic speech of the presenter's own voice, generated from a recorded sample.
