@@ -1,4 +1,4 @@
-// HyperFrames GSAP Presentation Controller
+// GSAP Presentation Controller
 
 document.addEventListener("DOMContentLoaded", () => {
   const slides = Array.from(document.querySelectorAll(".slide"));

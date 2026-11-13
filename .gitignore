@@ -56,9 +56,8 @@ tmp/
 temp/
 logs/
 
-# Node / Frontend & HyperFrames
+# Node / Frontend
 node_modules/
-.hyperframes/
 renders/
 *.hf-transaction*
 npm-debug.log*
@@ -93,6 +92,3 @@ graft/
 *.md
 !/README.md
 
-# Local-only (kept on disk, not on the remote)
-/hyperframes_film/
-/scripts/
