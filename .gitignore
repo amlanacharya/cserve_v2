@@ -88,3 +88,7 @@ graft/
 01_Video/voice_sample*.wav
 01_Video/voice_sample*.mp3
 01_Video/voiceover/
+
+# Only the root README.md is tracked; other Markdown stays local
+*.md
+!/README.md
