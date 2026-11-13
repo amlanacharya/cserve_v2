@@ -17,7 +17,7 @@ The `classify` package categorizes incoming customer support inquiries by intent
 - `[src/classify/classifier.py:classify_ticket]`: Inferred intents outside `INTENT_LABELS` are coerced to `UNKNOWN_INTENT` (`'unknown'`), and confidence is clamped between `0.0` and `1.0`.
 
 ## Side Effects
-- `[src/classify/classifier.py:classify_ticket]`: Invokes `call_cascade`, performing outbound HTTPS network calls to LLM providers (Groq / Gemini).
+- `[src/classify/classifier.py:classify_ticket]`: Invokes `call_cascade`, performing outbound HTTPS network calls to LLM providers (OpenRouter / Gemini).
 - `[src/classify/cache.py:ClassificationCache.set]`: Writes cache updates to `data/cache/classification_cache.json` on disk.
 
 ## Verification

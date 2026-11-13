@@ -70,7 +70,7 @@
 >     The two scores are orthogonal and never blended.
 > 5.  **Branch A (Auto-Respond):** `src/generation/generator.py` compiles XML-sandboxed prompts, invokes the model to cite exact `[DOC-ID]` anchors, and validates through active PII and hallucination guardrails.
 > 6.  **Branch B (Escalation):** Ambiguous, critical, or guardrail-tripped tickets early-bypass generation, assemble an `EscalationPacket`, and proceed directly to audit.
-> 7.  **Resilient 3-Tier Cascade & Fault Tolerance:** Powered by Groq, with fallback to Google Gemini, and a tertiary offline fail-safe mock. Every node is wrapped with `@safe_node`, guaranteeing zero unhandled process crashes."
+> 7.  **Resilient 3-Tier Cascade & Fault Tolerance:** Powered by OpenRouter, with fallback to Google Gemini, and a tertiary offline fail-safe mock. Every node is wrapped with `@safe_node`, guaranteeing zero unhandled process crashes."
 
 ---
 

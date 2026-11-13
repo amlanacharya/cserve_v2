@@ -219,7 +219,7 @@ def call_cascade(
 ) -> tuple[str, str]:
     """
     Executes inference cascade:
-    Tier 1: Groq API
+    Tier 1: OpenRouter (Groq is an optional extra tier; order set by PROVIDER_ORDER)
     Tier 2: Google Gemini API
     Tier 3: Offline fail-safe heuristic engine
     Returns: (output_text, provider_used)

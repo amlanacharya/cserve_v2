@@ -207,7 +207,7 @@
           </div>
 
           <div class="cascade-banner">
-            <strong>Resilient 3-Tier Provider Cascade:</strong> Groq (Primary) &rarr; Google Gemini (Secondary) &rarr; Offline Fail-Safe Escalation Mock (Zero Crashes, A11)
+            <strong>Resilient 3-Tier Provider Cascade:</strong> OpenRouter (Primary) &rarr; Google Gemini (Secondary) &rarr; Offline Fail-Safe Escalation Mock (Zero Crashes, A11)
           </div>
         </div>
         <div class="speaker-notes">
@@ -240,7 +240,7 @@
             <div class="demo-card">
               <div class="demo-badge">CRITERION A11</div>
               <h3>Fault-Tolerant Outage Cascade</h3>
-              <p>Simulated network disconnect triggers fallback from Groq to Gemini and offline heuristic mock. Process runs to completion without a single crash.</p>
+              <p>Simulated network disconnect triggers fallback from OpenRouter to Gemini and offline heuristic mock. Process runs to completion without a single crash.</p>
             </div>
           </div>
 
@@ -261,19 +261,19 @@
 
           <div class="metrics-dashboard">
             <div class="metric-box box-warning">
-              <div class="m-val">23.8%</div>
+              <div class="m-val">52.5%</div>
               <div class="m-title">First-Contact Resolution</div>
-              <div class="m-sub">Target: &ge; 65.0% &mdash; NOT MET (19 of 80; 7.5% before tuning)</div>
+              <div class="m-sub">Assisted mode (human reviews replies); safe autopilot 37.5%. On 500 dev tickets: 63.4% assisted, 44.2% safe. Target 65%</div>
             </div>
             <div class="metric-box box-primary">
-              <div class="m-val">0.093</div>
+              <div class="m-val">0.108</div>
               <div class="m-title">Expected Calibration Error</div>
               <div class="m-sub">Target: &le; 0.15 across 10 bins</div>
             </div>
             <div class="metric-box box-info">
-              <div class="m-val">8.2 s</div>
+              <div class="m-val">6.7 s</div>
               <div class="m-title">P95 Response Latency</div>
-              <div class="m-sub">Budget: &le; 3 s &mdash; NOT MET (free-tier rate limits)</div>
+              <div class="m-sub">Budget: &le; 3 s &mdash; NOT MET (model-call time; needs dedicated model)</div>
             </div>
             <div class="metric-box box-warning">
               <div class="m-val">80/80</div>
@@ -300,7 +300,7 @@
           </div>
         </div>
         <div class="speaker-notes">
-          [14:00 - 17:00] METRICS: Be candid. FCR was 23.8% (19 of 80; 7.5% before tuning) against the 65% target. ECE was 0.093 and accuracy 85%, so calibration held. P95 latency was 8.2 s on a rate-limited free tier, above the 3 s budget. A quarter of the set fell back because of provider rate limits.
+          [14:00 - 17:00] METRICS: Be candid. Two modes on OpenRouter gpt-oss-120b. Assisted (a person reviews replies): 63.4% FCR on 500 dev tickets, 52.5% on the 80 validation tickets. Safe autopilot: 44.2% and 37.5%. Labels cap automatic resolution near 60%. Caveats: assisted answered 5 of 87 must-not dev tickets; dev is in-sample; validation not held out. ECE 0.108. P95 6.7 s vs 3 s budget: the time is the model call.
         </div>
       </section>
 

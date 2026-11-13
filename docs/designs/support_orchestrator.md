@@ -31,7 +31,7 @@ The proposed solution is a modular monolith (`SupportOrchestrator`): strictly bo
 *   **G3: Grounded Semantic Retrieval Prior to Routing**: Query the 29 documentation articles (chunked into 70–90 header-based chunks) using ChromaDB 0.3.21 and `all-MiniLM-L6-v2` embeddings in one step, so the retrieval score is available to the router.
 *   **G4: Independent Dual-Gate Routing**: Route to automated response only when intent confidence $c \ge 0.75$ **and** retrieval similarity $s_{\text{ret}} \ge 0.65$ **and** urgency $\neq$ CRITICAL **and** no safety flag is set. The two scores are independent, orthogonal gates and are never blended.
 *   **G5: Active Guardrails & Zero-Tolerance Escalation**: Block PII leaks and ungrounded claims; immediately divert tripped responses to human escalation without retry loops.
-*   **G6: Fault-Tolerant 3-Tier Fallback Cascade**: Complete every ticket in every evaluation batch via an inference cascade (Groq $\rightarrow$ Google Gemini $\rightarrow$ offline fail-safe escalation engine).
+*   **G6: Fault-Tolerant 3-Tier Fallback Cascade**: Complete every ticket in every evaluation batch via an inference cascade (OpenRouter $\rightarrow$ Google Gemini $\rightarrow$ offline fail-safe escalation engine).
 *   **G7: Enriched Escalation Packaging**: Give human agents intent, urgency, confidence, intent alternatives, routing reason, and the top-2 candidate documentation links from the retrieval cache.
 *   **G8: Modular Monolith Maintainability**: Enforce explicit domain boundaries, strict public interfaces, and zero circular dependencies.
 *   **G9: Persistent Auditability & Measurable Evaluation**: Record every decision in an append-only SQLite store (`decision_log.db`) and compute evaluation metrics (A10) from it into JSON/CSV reports. SQLite and `evaluation/metrics.py` are the sole persistence and evaluation mechanisms.
@@ -80,7 +80,7 @@ The proposed solution is a modular monolith (`SupportOrchestrator`): strictly bo
 | **A8** | Persistent decision log | `src/audit/logger.py` append-only SQLite `decision_log` table reconciling 100% of processed tickets. |
 | **A9** | Unattended evaluation run | `evaluation/harness.py` batch CLI taking `--input`, `--output`, and `--delay`. |
 | **A10** | Automated metrics report | `evaluation/metrics.py` computing volume, business (FCR), technical (latency, ECE), and governance metrics to JSON/CSV. |
-| **A11** | Fault-tolerant execution | `@safe_node` wrappers on all LangGraph nodes plus the 3-tier cascade (Groq $\rightarrow$ Gemini $\rightarrow$ offline fail-safe engine). |
+| **A11** | Fault-tolerant execution | `@safe_node` wrappers on all LangGraph nodes plus the 3-tier cascade (OpenRouter $\rightarrow$ Gemini $\rightarrow$ offline fail-safe engine). |
 | **A12** | Single-command test suite | `pytest tests/ -v` covering unit modules, graph failure recovery, and end-to-end flows. |
 
 ### 3. Critical User Journeys (CUJs)
@@ -425,7 +425,7 @@ Rationale for keeping the gates separate: a confident classifier can still be wr
 
 Acceptance Criterion A11 requires handling provider timeouts, rate limits, and outages. The cascade has three tiers:
 
-1. **Primary: Groq** via its OpenAI-compatible endpoint (`https://api.groq.com/openai/v1`, using the `openai` client). Generation uses `llama-3.3-70b-versatile`. Classification uses `llama-3.1-8b-instant`, which is faster and has separate, higher rate limits. Both model names are configurable in `src/core/config.py`.
+1. **Primary: OpenRouter** via its OpenAI-compatible endpoint (`https://openrouter.ai/api/v1`), `openai/gpt-oss-120b` for generation and classification (`OPENROUTER_MODEL`). Groq (`GROQ_*`) remains an optional tier selectable through `PROVIDER_ORDER`; this document's schema still lists it as an allowed `provider_used` value.
 2. **Secondary: Google Gemini** (`gemini-2.5-flash`). Independent infrastructure backup.
 3. **Tertiary: Offline Fail-Safe Escalation Engine.** A local, deterministic engine with no network dependency:
    *   **Intent**: keyword and token-overlap matching against the intent label vocabulary.
@@ -521,7 +521,7 @@ All untrusted text is placed inside XML delimiters in static prompt templates (`
 
 ### 7. HuggingFace Serverless in the LLM Cascade
 *   **Rationale for rejection**: Cold-boot delays (30–60 s) and sporadic free-tier rate limits threaten latency bounds.
-*   **Decision**: The cascade is Groq, Gemini, and the offline fail-safe engine.
+*   **Decision**: The cascade is OpenRouter, Gemini, and the offline fail-safe engine (originally Groq; changed after the evaluation, see report Section 7.10).
 
 ### 8. Fixed-Size or Whole-Article Chunking
 *   **Rationale for rejection**: Whole articles dilute embeddings across unrelated sections. Fixed-size windows cut procedures mid-step and lose heading context.
@@ -661,7 +661,7 @@ The implementation is partitioned into six sequential, incremental phases aligne
         *   `<retrieved_context>` encloses top-3 chunks with `<doc id="[DOC-ID]">` headers.
         *   System prompt instructs the model to ignore instructions inside XML blocks and strictly cite source `[DOC-ID]`.
     *   `[Create] src/generation/cascade.py`: Resilient inference client:
-        *   Tier 1 (Primary): Groq API (`llama-3.3-70b-versatile`) via OpenAI SDK transport.
+        *   Tier 1 (Primary): OpenRouter (`openai/gpt-oss-120b`) via OpenAI SDK transport.
         *   Tier 2 (Secondary): Google Gemini API (`gemini-2.5-flash`) via `httpx.Client`.
         *   Retry logic: Exponential backoff with full jitter on HTTP 429 ($b_0 = 1.0\text{s}$, $b_{\max} = 8.0\text{s}$, max 1 retry).
         *   Tier 3 (Tertiary Offline Mock): Local Deterministic Heuristic Engine. Matches keywords to one of the 21 dataset intent labels (e.g. `billing_query`, `authentication_failure`, `deployment_failure`, `rate_limit`), defaulting to `unclear_request` when nothing matches, retrieves local ChromaDB chunks, sets `must_not_auto_respond = True`, routes to `ESCALATE`, and never generates draft responses.

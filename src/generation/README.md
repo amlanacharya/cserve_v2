@@ -1,10 +1,10 @@
 # Generation Component
 
 ## Overview
-The `generation` package handles prompt synthesis, context sandboxing, and inference execution across a resilient 3-tier cascade (Groq $\rightarrow$ Google Gemini $\rightarrow$ offline heuristic fail-safe engine). It enforces explicit XML tag demarcation and citation anchor formatting (`[DOC-ID]`).
+The `generation` package handles prompt synthesis, context sandboxing, and inference execution across a resilient 3-tier cascade (OpenRouter $\rightarrow$ Google Gemini $\rightarrow$ offline heuristic fail-safe engine). It enforces explicit XML tag demarcation and citation anchor formatting (`[DOC-ID]`).
 
 ## Interface
-- `[src/generation/cascade.py:call_cascade]`: `call_cascade(system_prompt: str, user_prompt: str, temperature: float = 0.0, task_type: str = "generation", model_override: str | None = None) -> tuple[str, str]` executes Tier 1 (Groq), Tier 2 (Gemini), and Tier 3 (offline mock).
+- `[src/generation/cascade.py:call_cascade]`: `call_cascade(system_prompt: str, user_prompt: str, temperature: float = 0.0, task_type: str = "generation", model_override: str | None = None) -> tuple[str, str]` executes Tier 1 (OpenRouter), Tier 2 (Gemini), and Tier 3 (offline mock).
 - `[src/generation/cascade.py:compute_jittered_backoff]`: `compute_jittered_backoff(attempt: int, base: float, cap: float) -> float` calculates uniform jittered exponential sleep duration.
 - `[src/generation/cascade.py:extract_retry_after]`: `extract_retry_after(headers: Any, cap: float) -> float | None` parses and bounds HTTP `Retry-After` headers.
 - `[src/generation/generator.py:generate_response]`: `generate_response(subject: str | None, body: str, retrieved_docs: list[DocumentChunk]) -> dict[str, Any]` packages top retrieval passages, runs inference, and returns draft text, citations, and provider.
@@ -19,7 +19,7 @@ The `generation` package handles prompt synthesis, context sandboxing, and infer
 - `[src/generation/prompts.py:escape_xml]`: User ticket content is strictly escaped to prevent delimiter-breaking prompt injection attacks.
 
 ## Side Effects
-- `[src/generation/cascade.py:call_cascade]`: Dispatches HTTPS network requests to Groq and Gemini APIs.
+- `[src/generation/cascade.py:call_cascade]`: Dispatches HTTPS network requests to OpenRouter, Groq (optional) and Gemini APIs.
 - `[src/generation/cascade.py:_backoff_if_retryable]`: Pauses thread execution via `time.sleep` when encountering 429 rate limits or 5xx server errors.
 
 ## Verification

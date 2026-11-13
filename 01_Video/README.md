@@ -36,7 +36,7 @@ The 18-minute core film is structured into 7 distinct sections, adhering to the 
 | **Section 2** | `act2_architecture.html` | 2:30 – 5:00 | 150s | **System Design Thesis:** Clean Architecture domain model; why microservices fail; LangGraph StateGraph & `@safe_node` defensive isolation. |
 | **Section 3** | `act3_ingestion.html` | 5:00 – 7:30 | 150s | **Ingestion & PII Defense:** Multi-channel normalizer (`email`, `chat`, `forum`, `docs_comment`); Luhn algorithm checksum validation; API key regex redaction. |
 | **Section 4** | `act4_retrieval.html` | 7:30 – 10:00 | 150s | **Semantic Retrieval & Chunking:** Bounded H2/H3 chunking (87 chunks across 29 articles); ChromaDB 0.3.21 dense embeddings; Pydantic v2 backward compatibility shim. |
-| **Section 5** | `act5_routing.html` | 10:00 – 12:30 | 150s | **Orthogonal Dual Gates & Cascade:** Independent dual gates ($c \ge 0.75, s_{\text{ret}} \ge 0.65$); XML prompt sandboxing; 3-tier cascade (Groq &rarr; Gemini &rarr; Offline Mock). |
+| **Section 5** | `act5_routing.html` | 10:00 – 12:30 | 150s | **Orthogonal Dual Gates & Cascade:** Independent dual gates ($c \ge 0.75, s_{\text{ret}} \ge 0.65$); XML prompt sandboxing; 3-tier cascade (OpenRouter &rarr; Gemini &rarr; Offline Mock). |
 | **Section 6** | `act6_demo.html` | 12:30 – 16:00 | 210s | **Live In-App Control Plane:** real screen recording of the dashboard in a browser frame with a synchronised scenario sidebar (auto-response, safety veto, gate escalations, guardrail veto, PII/Luhn, SQLite tamper test, audit log). |
 | **Section 7** | `act7_results.html` | 16:00 – 18:00 | 120s | **Empirical Benchmarks & Retrospective:** Measured results: 23.8% FCR on validation (7.5% first run; 20.0% on run 5), 44.2% FCR on the 500-ticket development benchmark, correct-routing rate vs FCR, label ceiling of 60-62% (target 65% not met), ECE 0.093, P95 8.2 s (budget not met), next steps. |
 
@@ -111,6 +111,6 @@ To assemble the complete 20-minute capstone submission with your webcam talking-
 
 ## Voiced versions (final)
 
-- `hyperframes_presentation_voiced.mp4` (16:20, 1080p): the film re-timed to its narration (each act lasts as long as its voiceover; Act VI keeps the full 210 s demo), with the presenter's voice. Supersedes `hyperframes_presentation_18min*.mp4`.
+- `hyperframes_presentation_voiced.mp4` (15:53, 1080p): the film re-timed to its narration (each act lasts as long as its voiceover; Act VI keeps the full 210 s demo), with the presenter's voice. Supersedes `hyperframes_presentation_18min*.mp4`.
 - `in_app_demo_live_voiced.mp4` (3:28): the live dashboard recording with narration aligned to each on-screen scenario, plus a caption in scenario 6 showing the real normalizer output for the PII ticket.
 - Built by `scripts/generate_voiceover.py`, `scripts/retime_film.py` and `scripts/assemble_voiceover.py`; narration text is `hyperframes_film/DIRECTOR_SCRIPT.md`.

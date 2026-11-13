@@ -24,7 +24,7 @@ class Settings(BaseModel):
     provider_order: list[str] = Field(
         default_factory=lambda: [
             x.strip().lower()
-            for x in (os.getenv("PROVIDER_ORDER") or os.getenv("PRIMARY_PROVIDER", "groq")).split(",")
+            for x in (os.getenv("PROVIDER_ORDER") or os.getenv("PRIMARY_PROVIDER", "openrouter")).split(",")
             if x.strip()
         ]
     )

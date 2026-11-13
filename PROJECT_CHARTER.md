@@ -3,7 +3,7 @@
 ## 1. Registered Facts & Directives
 - **Target Deadline**: **November 8, 2026** (Accelerated 9-day full lifecycle execution).
 - **Remote Git Repository**: [https://github.com/amlanacharya/cserve_v2](https://github.com/amlanacharya/cserve_v2)
-- **Primary LLM Provider**: Groq API (`.env` verified and operational: `openai/gpt-oss-120b`, `openai/gpt-oss-20b`, and Llama-3.3 fallbacks).
+- **Primary LLM Provider**: OpenRouter (`openai/gpt-oss-120b`; Groq and Gemini are optional fallback tiers).
 - **Secondary/Fallback LLM Providers**: Google Gemini API, HuggingFace Inference API, and mock/offline fallbacks to ensure zero-crash resilience (A11).
 - **Video Production & Recording**:
   - **HeyGen HyperFrames** ([github.com/heygen-com/hyperframes](https://github.com/heygen-com/hyperframes)): Code-driven HTML/CSS/GSAP video generation for slide cards, metrics visualizations, and structured narrative segments.
@@ -68,7 +68,7 @@
 ### Stage 5: System Implementation & Unattended Evaluation (Nov 2 – Nov 5)
 - **`src/` package development**:
   - `src/ingest/`: Channel normalisers for email, live chat, forum, doc comments.
-  - `src/classify/`: Classifier utilizing Groq/Gemini with confidence scoring.
+  - `src/classify/`: Classifier utilizing OpenRouter/Gemini with confidence scoring.
   - `src/retrieve/`: ChromaDB vector retrieval engine indexing `05_Datasets/documentation.json`.
   - `src/route/`: Deterministic routing decision engine with escalation bundling.
   - `src/generate/`: Citation-grounded answer generator.

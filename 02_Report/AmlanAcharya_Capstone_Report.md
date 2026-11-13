@@ -17,7 +17,7 @@ I built the CloudServe Support Orchestrator: a Python modular monolith, coordina
 
 **What it achieved.** I ran the harness unattended over the 80 validation tickets on 8 November 2026 and the system processed and logged all 80 without a crash. In the final configuration, intent accuracy was 85.0 per cent, retrieval precision at three was 92.5 per cent, and expected calibration error (ECE) was 0.093, inside the 0.15 target. No ticket labelled `must_not_auto_respond` was answered automatically (0 of 14).
 
-**What it did not achieve, and the single most important caveat.** First-contact resolution, measured as the share of tickets answered automatically, was **23.8 per cent (19 of 80) against a 60 per cent target**. The first honest run gave 7.5 per cent; lowering the retrieval-similarity floor from 0.65 to 0.40, forcing sensitive intents to a human, tightening the generation prompt and stemming the guardrail's word match raised it to 23.8 per cent. A quarter of the set (25 tickets) was escalated only because the free-tier model provider hit its rate limit which can be the case when provider service outage will be there, so the figure understates what the design could do on a paid key; among the 55 provider-served tickets the answer rate was 34.5 per cent, still well below target. Five of the 19 answers sent were for tickets labelled as needing a human, which is too high for automatic sending. P95 latency was 8.2 seconds against a 3-second budget, again confounded by rate limits. Section 7 reports all five validation runs, how each change was chosen, and that one choice (the similarity floor) was informed by validation results, so the figures are optimistic. A later run on three low-cost providers (run 5) removed the rate-limit fallbacks and gave 20.0 per cent (16 of 80), probably because the smaller models' answers failed the grounding check more often; a 500-ticket development benchmark gave 32.2 per cent on the low-cost models and 44.2 per cent on `gpt-oss-120b` (Section 7.7), against a ceiling of about 62 per cent set by the labels. An opt-in regenerate-on-failure step (Section 7.9) raised development FCR to 63.4 per cent with `gpt-oss-120b` (57.5 per cent on validation), but it also answered 5 of 87 must-not tickets, so it is not enabled by default; the safe profile (`gpt-oss-120b`, no retry) gives 44.2 per cent on development and 33.8 per cent on validation. The design is safe, calibrated and auditable, and it does not yet deliver the business outcome.
+**What it achieved, and the single most important caveat.** First-contact resolution, measured as the share of tickets answered automatically, depends on one setting that trades resolution against risk, so I report two operating modes on the same OpenRouter `gpt-oss-120b` stack (Section 7.10). The **safe autopilot** mode reached **44.2 per cent on the 500 development tickets** and 37.5 per cent on the 80 validation tickets, with 0 of 14 must-not tickets answered on validation. The **assisted mode**, which regenerates a draft once when the grounding check fails and is meant to run with a person reviewing replies, reached **63.4 per cent on development (317 of 500)** and **52.5 per cent on validation (42 of 80)**. On this validation set the labels allow at most 60 per cent (48 of 80 tickets are suited to automatic response, so the 65 per cent target is above the ceiling), and assisted mode reached 87.5 per cent of that ceiling. The caveats are part of the result. The assisted mode answered 5 of 87 must-not development tickets, so it is not the unattended default; the development figure is in-sample for components I tuned; the validation set is not held out, because I made decisions after seeing early runs; and run-to-run variation is about nine points on 80 tickets (the same mode gave 57.5 per cent on 11 November and 52.5 per cent on 13 November). My first measured result, 23.8 per cent (19 of 80), came from a rate-limited early configuration and is kept in the run register (Table 3) as run 3. P95 latency is 6.5 to 6.7 seconds against a 3-second budget, and I explain in Section 7.10 where the time goes and what would be needed to reach 3 seconds. The design is safe, calibrated and auditable. It reaches the business target only with a human reviewing replies, and I measured that, not assumed it.
 
 ---
 
@@ -153,7 +153,7 @@ The evaluation shows the cost of this design. Independent gates are only as good
 
 ### 5.3 Three-tier provider cascade
 
-Classification and generation call a hosted model through a cascade. The primary tier is Groq, using an open-weight model for generation and a smaller one for classification; failures that are retryable (timeouts, 5xx errors, rate-limit responses) are retried with exponential back-off and jitter, honouring any `Retry-After` header. The secondary tier is Google Gemini, which runs on independent infrastructure. If both are unavailable, a local deterministic heuristic classifies the ticket, sets the veto, and routes to escalation without generating any text. This third tier never produces a customer-facing answer by design, which the revision log records as a deliberate change from an earlier draft that would have generated template answers offline.
+Classification and generation call a hosted model through a cascade. The primary tier is OpenRouter, serving an open-weight model (`gpt-oss-120b` in the recommended profile) for generation and classification; Groq remains an optional tier, used in the early runs; failures that are retryable (timeouts, 5xx errors, rate-limit responses) are retried with exponential back-off and jitter, honouring any `Retry-After` header. The secondary tier is Google Gemini, which runs on independent infrastructure. If both are unavailable, a local deterministic heuristic classifies the ticket, sets the veto, and routes to escalation without generating any text. This third tier never produces a customer-facing answer by design, which the revision log records as a deliberate change from an earlier draft that would have generated template answers offline.
 
 ### 5.4 Alternatives considered
 
@@ -195,15 +195,17 @@ I evaluated the system with `python -m evaluation.harness --input 05_Datasets/va
 
 The validation set was run five times on 8 November 2026, and I made system decisions after seeing the first three. Run 5 changed the model providers, not the design, and was run to remove the rate-limit contamination of run 3; it does not restore the validation set to a held-out state. That makes the validation figures optimistic as an estimate for unseen data, and the reader should weigh them accordingly. Table 3 lists every run and what changed between them.
 
-**Table 3. Validation runs (n = 80), all on 8 November 2026.** Run 5 differs from run 3 in model provider only.
+**Table 3. Validation runs (n = 80).** Runs 1 to 5 were on 8 November 2026; runs 6 and 7 are the current configurations, re-run on 13 November 2026. Run 5 differs from run 3 in model provider only. Runs 6 and 7 send traffic to OpenRouter (78 of 80 tickets each; 2 in each run were served by Gemini after an OpenRouter timeout).
 
 | Run | Configuration | Auto-resolved (FCR) | Router | Guardrail | Provider fallback | Wrong-route answers |
 |---|---|---|---|---|---|---|
 | 1 | Original: floor 0.65, prompt v1, lexical guard | 6 (7.5%) | 61 | 13 | 0 | 2 of 6 |
 | 2 | Floor lowered to 0.40 | 25 (31.3%) | 19 | 32 | 4 | 7 of 25 |
-| 3 | **Final:** floor 0.40, intent veto, prompt v2, stemmed guard, pacing 0.3 s | **19 (23.8%)** | 27 | 9 | **25** | 5 of 19 |
+| 3 | Early final (Groq-era, rate-limited): floor 0.40, intent veto, prompt v2, stemmed guard, pacing 0.3 s | **19 (23.8%)** | 27 | 9 | **25** | 5 of 19 |
 | 4 | Same as run 3, pacing 2.5 s, after the daily token cap was hit | 2 (2.5%) | 27 | 1 | 50 | 0 of 2 |
 | 5 | Same design, three low-cost providers in rotation (OpenRouter and Groq `gpt-oss-20b`, Gemini `3.1-flash-lite`) | 16 (20.0%) | 27 | 37 | 0 | 3 of 16 |
+| 6 | **Current safe mode:** OpenRouter `gpt-oss-120b`, no retry, 13 November | 30 (37.5%) | 27 | 23 | 0 | 6 of 30 |
+| 7 | **Current assisted mode:** as run 6 with `GUARDRAIL_RETRY=1`, 13 November | **42 (52.5%)** | 27 | 11 | 0 | 9 of 42 |
 
 Run 4 is not informative about the design. The hosted provider's daily token allowance (200,000 tokens for the generation model) was exhausted by my own experiments, so 50 of 80 tickets fell back to the offline tier. I report it because omitting it would hide that the system's output depends on provider quota. Run 3 is also affected, more mildly: 25 tickets fell back after the per-minute token limit was hit at 0.3-second pacing. **I use run 3 as the headline result because it is the only run of the final configuration that reached most of the set**, and I state its rate-limit contamination wherever I quote it.
 
@@ -248,7 +250,7 @@ Table 4 gives the full results of the final configuration, and Figure 2 shows wh
 
 {{FIG2}}
 
-First-contact resolution improved from 7.5 to 23.8 per cent between run 1 and run 3, and the target of 65 per cent is still missed by a wide margin. The system is safer than at run 1 (no data-residency ticket was answered, and no must-not ticket was) and it released answers for about a quarter of the set. Of the 29 provider-served tickets whose label says automatic response is right, 14 were answered, 9 were stopped by the router, and 6 were vetoed by the guardrail.
+*Table 4 describes run 3, my first full run of the tuned design on a rate-limited free tier. The current configurations are in Section 7.10 (37.5 and 52.5 per cent on the same set).* First-contact resolution improved from 7.5 to 23.8 per cent between run 1 and run 3, and the target of 65 per cent is still missed by a wide margin. The system is safer than at run 1 (no data-residency ticket was answered, and no must-not ticket was) and it released answers for about a quarter of the set. Of the 29 provider-served tickets whose label says automatic response is right, 14 were answered, 9 were stopped by the router, and 6 were vetoed by the guardrail.
 
 ### 7.4 Why the target was missed
 
@@ -385,6 +387,34 @@ I did not run strict retry with `gpt-oss-120b` on the development set because it
 
 **Decision.** My rule was the highest FCR with at most 2 of 87 development and 0 of 14 validation must-not tickets answered, and a wrong-answer share within about three points of the 24 per cent baseline. No retry configuration meets it; the least unsafe, `gpt-oss-120b` with retry, answered 5 must-not tickets. The configuration with the highest FCR that does meet it is `gpt-oss-120b` on OpenRouter without retry (44.2 per cent, 1 of 87, 0 of 14, 24.4 per cent wrong), so that is the recommended profile in `.env.example`. The code defaults keep both retry flags off. The unconstrained maximum, `GUARDRAIL_RETRY=1` with `gpt-oss-120b` (63.4 per cent on development), is available as an opt-in for a deployment that adds human review of automatic replies; I would not turn it on unattended given five must-not answers in 87.
 
+### 7.10 Current configuration on OpenRouter: two operating modes, and where the time goes
+
+The early runs used free-tier Groq and Gemini quotas, and the report's first headline (run 3) was contaminated by their rate limits. The deployed system now sends generation and classification to **OpenRouter** (`openai/gpt-oss-120b`), keeps Gemini as a secondary tier and the offline engine as a last resort, and exposes one switch (`GUARDRAIL_RETRY`) that moves it between two operating points. I re-ran the validation set on 13 November 2026 with only the OpenRouter key active (spend cap USD 0.50); 2 of 80 tickets in each run were still served by Gemini after an OpenRouter timeout. Intent classification in these runs was done afresh by `gpt-oss-120b` (not read from the cache used earlier): accuracy 83.75 per cent and expected calibration error 0.108, still inside the 0.15 limit but slightly worse than run 3's 85.0 per cent and 0.093; retrieval precision at 3 is unchanged at 92.5 per cent.
+
+**Table 11. Operating modes, `gpt-oss-120b` on OpenRouter, floor 0.40.** "Wrong" means answered although the label says escalate. Must-not is out of 87 (development) and 14 (validation). Development figures are from 11 November (Tables 8 and 9); validation figures are the 13 November re-run, with 11 November in brackets.
+
+| Mode | Set | FCR (auto-resolved) | Wrong answers | Must-not answered | Reviewer needed? |
+|---|---|---|---|---|---|
+| Safe autopilot (no retry) | dev 500 | 44.2% (221) | 54 (24.4%) | 1 of 87 | No: unattended |
+| Safe autopilot (no retry) | val 80 | 37.5% (30) [33.8%] | 6 (20.0%) | 0 of 14 | No |
+| Assisted (regenerate once) | dev 500 | **63.4% (317)** | 84 (26.5%) | 5 of 87 | **Yes** |
+| Assisted (regenerate once) | val 80 | **52.5% (42)** [57.5%] | 9 (21.4%) | 0 of 14 | Yes |
+
+How to read it. On dev, assisted mode answered 233 of the 311 automatable tickets and its 63.4 per cent is above the 62.2 per cent label ceiling, which is possible only because 84 of its answers went to tickets labelled escalate. On validation, 33 of the 48 automatable tickets (68.8 per cent) were answered in assisted mode against 24 (50.0 per cent) in safe mode, and no must-not ticket was answered in either. The 65 per cent target is therefore reachable in the sense that matters, resolving most of what is automatable, only when a person checks the replies; run unattended the system stays at 37 to 44 per cent by design, because the extra answers include tickets that need a human. The development figure is in-sample for the components I tuned, the validation set is not held out, and the 5-point gap between my two assisted validation runs shows the noise.
+
+**Latency.** Table 12 breaks down the 13 November safe-mode run by outcome.
+
+**Table 12. Latency by outcome, validation, safe mode (n = 80).**
+
+| Outcome | Tickets | Median | Slowest |
+|---|---|---|---|
+| Escalated by router (no answer drafted) | 27 | 1.0 s | 5.0 s |
+| Escalated by guardrail (answer drafted, then refused) | 23 | 2.8 s | 7.6 s |
+| Auto-resolved (retrieve, draft, check) | 30 | 2.9 s | 8.4 s |
+| All tickets, P95 | 80 | n/a | 6.7 s (assisted mode: 6.5 s) |
+
+The work done in the service itself (redaction, routing, retrieval and the guardrail checks) takes milliseconds. The time is the model call: a request to the OpenRouter API answers in 60 to 140 ms, but a tiny 8-token completion from `gpt-oss-120b` took 0.4 to 1.6 s in three trials, and a full reply of a hundred or more tokens through a shared pool takes a few seconds, with a long tail when requests queue. The median auto-resolved ticket is already within about 3 seconds, but the 3-second budget is a P95 target and it is **not met** (6.5 to 6.7 s). Generating a customer reply with a model of this size cannot take milliseconds on any hardware. A P95 near 3 seconds is possible if (1) the model is self-hosted or on a dedicated endpoint, so requests do not wait in a shared queue; (2) a smaller or distilled model drafts the reply; (3) the reply is streamed, so the customer sees the first words in about half a second; (4) the regenerate step is off or runs in parallel, since it adds a second model call; and (5) frequent questions are served from approved cached answers. I have not measured any of these, so this is a design path and not a result.
+
 ---
 
 ## 8. Governance and Risk
@@ -454,6 +484,8 @@ NFR-02 changed from a token-bucket rate limiter to a configurable delay plus ful
 
 ---
 
+**Changes made after evaluation (a version-4 revision, 13 November 2026).** The primary provider changed from Groq to OpenRouter; I re-ran validation in two modes (Section 7.10), added the customer disclaimer and reference footer, a priority score and a feedback endpoint (Section 6), and widened the API-key redaction pattern after a 24-character test key was not redacted. The first headline figure (23.8 per cent) is kept in Table 3 as run 3.
+
 ## 10. Conclusions
 
 ### 10.1 What was delivered
@@ -462,7 +494,7 @@ A working, tested, auditable orchestrator that processes a full ticket set unatt
 
 ### 10.2 What was not delivered
 
-The FCR target. At 23.8 per cent against 65 per cent in the validation headline run (34.5 per cent among provider-served tickets), and 44.2 per cent on the 500 development tickets with a larger model (Section 7.7), against a ceiling of about 60 to 62 per cent set by the labels, the system does not meet the client's central business goal. It also missed the latency budget, and one in four released answers was for a ticket that should have gone to a person. I did not complete the fairness audit on the development set, and I did not grade the content of released answers against the reference responses.
+The FCR target. Run unattended, the system reaches 44.2 per cent on the 500 development tickets and 37.5 per cent on validation, against a ceiling of about 60 to 62 per cent set by the labels, so it does not meet the client's central business goal on its own. With regenerate-on-failure and a person reviewing replies it reaches 63.4 per cent on development and 52.5 per cent on validation (Section 7.10), but that mode answered 5 of 87 must-not development tickets. P95 latency (6.5 to 6.7 seconds) missed the 3-second budget, and roughly one in four released answers was for a ticket that should have gone to a person. I did not complete the fairness audit on the development set, and I did not grade the content of released answers against the reference responses.
 
 ### 10.3 What I would do next
 
@@ -474,7 +506,7 @@ I am confident in the safety behaviour and the calibration, because they are tes
 
 ## Declaration of AI tool use
 
-I used AI coding assistants, principally Claude Code from Anthropic, throughout this project. The runtime system also calls hosted language models (Groq-hosted open-weight models and Google Gemini) for classification and generation. Third-party libraries are used under their licences: LangGraph, ChromaDB, sentence-transformers, FastAPI, Pydantic and SQLite. Earlier drafts of this report, the film and the video script contained performance figures that were not backed by a run of the harness; they were identified and replaced with measured values on 8 November 2026 before submission.
+I used AI coding assistants, principally Claude Code from Anthropic, throughout this project. The runtime system also calls hosted language models (open-weight models served through OpenRouter, with Google Gemini as a secondary tier; Groq was used in the early runs) for classification and generation. Third-party libraries are used under their licences: LangGraph, ChromaDB, sentence-transformers, FastAPI, Pydantic and SQLite. Earlier drafts of this report, the film and the video script contained performance figures that were not backed by a run of the harness; they were identified and replaced with measured values on 8 November 2026 before submission.
 
 ---
 

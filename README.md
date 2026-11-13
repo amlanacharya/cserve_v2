@@ -4,7 +4,7 @@
 
 The **CloudServe Support Orchestrator** is a decoupled, modular monolith processing pipeline designed for enterprise customer support operations. It ingests multi-channel customer inquiries, classifies intent and urgency, retrieves grounded knowledge base passages from 29 curated documentation articles using ChromaDB, routes tickets through independent dual gates (intent confidence and retrieval similarity), synthesizes citation-backed answers with strict source anchors (`[DOC-ID]`), and enforces active safety guardrails against PII leakage and hallucination.
 
-The system is coordinated by a LangGraph `StateGraph`, wrapped with `@safe_node` fault-tolerant exception containment, backed by an append-only SQLite decision audit log, and powered by a resilient 3-tier provider cascade (Groq $\rightarrow$ Google Gemini $\rightarrow$ offline fail-safe escalation engine).
+The system is coordinated by a LangGraph `StateGraph`, wrapped with `@safe_node` fault-tolerant exception containment, backed by an append-only SQLite decision audit log, and powered by a resilient 3-tier provider cascade (OpenRouter $\rightarrow$ Google Gemini $\rightarrow$ offline fail-safe escalation engine).
 
 ---
 
@@ -39,7 +39,7 @@ Providers are optional and configured in `.env` (see `.env.example`): `PROVIDER_
 | **A8** | Persistent decision log | `src/audit/logger.py` append-only SQLite `decision_log` table reconciling 100% of processed tickets. |
 | **A9** | Unattended evaluation run | `evaluation/harness.py` batch CLI taking `--input`, `--output`, and `--delay`. |
 | **A10** | Automated metrics report | `evaluation/metrics.py` computing volume, business (FCR), technical (latency, ECE), and governance metrics. |
-| **A11** | Fault-tolerant execution | `@safe_node` wrappers on all nodes plus 3-tier cascade (Groq $\rightarrow$ Gemini $\rightarrow$ offline mock). |
+| **A11** | Fault-tolerant execution | `@safe_node` wrappers on all nodes plus 3-tier cascade (OpenRouter $\rightarrow$ Gemini $\rightarrow$ offline mock). |
 | **A12** | Single-command test suite | `pytest tests/ -v` covering unit modules, graph failure recovery, and end-to-end flows. |
 
 ---
@@ -73,7 +73,7 @@ Providers are optional and configured in `.env` (see `.env.example`): `PROVIDER_
 
 - **SQLite WAL Storage**: Synchronous write-ahead log operations to `data/decision_log.db`.
 - **Vector Database**: Disk access and embedding index management at `data/chromadb` (`duckdb+parquet`).
-- **External Network Inference**: Outbound HTTPS requests to Groq (`api.groq.com`) and Google Gemini (`generativelanguage.googleapis.com`) API endpoints.
+- **External Network Inference**: Outbound HTTPS requests to OpenRouter (`openrouter.ai`) and Google Gemini (`generativelanguage.googleapis.com`) API endpoints.
 
 ---
 

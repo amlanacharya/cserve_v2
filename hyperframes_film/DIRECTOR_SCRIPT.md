@@ -16,7 +16,7 @@
 [7:30 - 10:00| 150s]  ACT IV:  Bounded Semantic Chunking (87 Chunks) & ChromaDB Dense Retrieval
 [10:00-12:30| 150s]  ACT V:   Independent Orthogonal Dual Gates & 3-Tier Cascade Sandboxing
 [12:30-16:00| 210s]  ACT VI:  HERO PRODUCT DEMO — Live Pytest, FastAPI Endpoints, SQLite & Batch CLI
-[16:00-18:00| 120s]  ACT VII: Measured Results (23.8% validation FCR, 44.2% dev-500 FCR, ECE 0.093), Honest Retrospective
+[16:00-18:00| 120s]  ACT VII: Measured Results (assisted 63.4% dev FCR and 52.5% validation, safe 44.2% / 37.5%, ECE 0.108), Honest Retrospective
 TOTAL: Exactly 1,080 Seconds (18 Minutes)
 ```
 
@@ -85,7 +85,7 @@ TOTAL: Exactly 1,080 Seconds (18 Minutes)
 ## Act V: Independent Orthogonal Dual Gates & Cascade Generator (10:00 – 12:30 / 150s)
 
 *   **Timeline:** `data-start="600"` &bull; `data-duration="150"`
-*   **Visual Setup:** Interactive Dual-Gate decision matrix. Gate 1: Classification Confidence $c \ge 0.75$. Gate 2: Semantic Similarity $s_{\text{ret}} \ge 0.65$. Urgent/Veto checks. XML prompt sandboxing diagram and 3-Tier fallback cascade (Groq &rarr; Gemini &rarr; Safe Mock).
+*   **Visual Setup:** Interactive Dual-Gate decision matrix. Gate 1: Classification Confidence $c \ge 0.75$. Gate 2: Semantic Similarity $s_{\text{ret}} \ge 0.65$. Urgent/Veto checks. XML prompt sandboxing diagram and 3-Tier fallback cascade (OpenRouter &rarr; Gemini &rarr; Safe Mock).
 *   **Voiceover Narration:**
     > *(10:00 – 10:45)* "In PRD v1.0, the preliminary proposal was to use a blended composite score: $S = 0.5c + 0.5s_{\text{ret}} \ge 0.70$. During empirical testing, we proved this formula was fundamentally flawed! If a user submitted a vague query like 'system broke during upgrade', classification confidence was poor at 0.40, but retrieval matched a generic upgrade doc with 0.94 similarity. The blended average passed 0.70, triggering an auto-response with completely irrelevant steps! Blending allows high retrieval similarity to mask severe classification uncertainty."
     > 
@@ -93,7 +93,7 @@ TOTAL: Exactly 1,080 Seconds (18 Minutes)
     > 
     > *(11:30 – 12:05)* "When auto-response is authorized, our generation engine in `src/generation/cascade.py` synthesizes the response using strict XML delimiter sandboxing. The prompt encapsulates untrusted user input within `<user_ticket>` tags and retrieved documentation within `<retrieved_context>` tags. System instructions explicitly inform the model that XML content is passive data, neutralizing prompt injection attacks. Furthermore, every claim must cite official document anchors like `[DEPLOY-003]`."
     > 
-    > *(12:05 – 12:30)* "To guarantee zero downtime, generation operates through a three-tier cascade: Primary Groq LLM with sub-second execution &rarr; Secondary Gemini 1.5 Flash fallback &rarr; Tertiary Safe Offline Escalation Engine. If cloud APIs are unreachable, our offline engine never outputs speculative guesses—it immediately routes to human engineers with full context. Now, let's transition to the live software demonstration!"
+    > *(12:05 – 12:30)* "To guarantee zero downtime, generation operates through a three-tier cascade: Primary OpenRouter, serving an open-weight model &rarr; Secondary Gemini fallback &rarr; Tertiary Safe Offline Escalation Engine. If cloud APIs are unreachable, our offline engine never outputs speculative guesses—it immediately routes to human engineers with full context. Now, let's transition to the live software demonstration!"
 
 ---
 
@@ -106,7 +106,7 @@ TOTAL: Exactly 1,080 Seconds (18 Minutes)
     > 
     > *(13:02 – 13:27) [Scenario 2: safety veto]* "Scenario two is a production database outage. Classification confidence is high, but urgency is critical, so the safety veto fires. The router escalates and builds an enriched packet for Tier 2 with the failed gates and the top candidate articles. Notice the packet lists the failed gates and the two best candidate articles, so Tier 2 starts with context."
     > 
-    > *(13:27 – 14:18) [Scenarios 3 and 4: router escalations]* "Scenarios three and four are the two gates failing. In both, retrieval similarity (0.33 and 0.14) is below the 0.65 floor, so the ticket escalates with an explicit reason string. The gates are independent: scenario three passes the confidence gate at 0.75 and still fails on similarity. I will come back to this gate in the results, because it is the one that limited our FCR. Watch the reason string on screen. It names the exact gate and the exact numbers, which is what a support manager needs to trust the decision. Nothing here is hidden inside a model. Both tickets are real examples, and the router refused them for different reasons, which is exactly why the two gates are kept separate."
+    > *(13:27 – 14:18) [Scenarios 3 and 4: router escalations]* "Scenarios three and four are the two gates failing. In both, retrieval similarity (0.33 and 0.14) is below the 0.65 floor, so the ticket escalates with an explicit reason string. The gates are independent: scenario three passes the confidence gate at 0.75 and still fails on similarity. Watch the reason string on screen. It names the exact gate and the exact numbers, which is what a support manager needs to trust the decision. Nothing here is hidden inside a model. Both tickets are real examples, and the router refused them for different reasons, which is exactly why the two gates are kept separate. In the results I come back to how many tickets each stop catches, because the router and the guardrail together decide how many tickets a customer gets answered automatically."
     > 
     > *(14:18 – 14:44) [Scenario 5: guardrail veto]* "Scenario five clears both gates, so a draft is generated, but the grounding check finds a sentence the retrieved text does not support and suppresses the whole answer. This is the guardrail doing its job, and it fired on thirteen of the nineteen generated answers in the validation run. The draft is thrown away entirely, not edited, so a customer never receives a half-supported answer."
     > 
@@ -121,15 +121,15 @@ TOTAL: Exactly 1,080 Seconds (18 Minutes)
 ## Act VII: Empirical Benchmark Results, Calibration & Retrospective (16:00 – 18:00 / 120s)
 
 *   **Timeline:** `data-start="960"` &bull; `data-duration="120"`
-*   **Visual Setup:** Benchmark summary dashboard. Three metric cards (FCR 23.8% not met, ECE 0.093 met, P95 8,220 ms not met) and takeaways: FCR vs correct-routing, the 500-ticket development benchmark, and the label ceiling.
+*   **Visual Setup:** Benchmark summary dashboard. Three metric cards (FCR 63.4% assisted / 44.2% safe, ECE 0.108 met, P95 6.7 s not met) and takeaways: FCR vs correct-routing, the 500-ticket development benchmark, and the label ceiling.
 *   **Voiceover Narration:**
-    > *(16:00 – 16:34)* "Here is what the measured results say, on the 80-ticket validation set. My first honest run gave first-contact resolution of **7.5 per cent**, against a target of 65. I then made four changes: lowered the retrieval-similarity floor from 0.65 to 0.40, forced sensitive intents such as data residency and security to a human, tightened the generation prompt so answers only restate the sources, and made the guardrail's word matching stem-aware. The final configuration reached **23.8 per cent**: 19 of 80 answered. The target is still missed by a wide margin, and I want to be clear about that."
+    > *(16:00 – 16:34)* "Here is what the measured results say. The early run, on a rate-limited free tier, gave first-contact resolution of **23.8 per cent**. The system now runs on OpenRouter with one larger model, in two modes. Safe autopilot answers on its own: **44.2 per cent** on the 500 development tickets, and 37.5 on the 80 validation tickets. Assisted mode regenerates a draft once if the grounding check fails, and a person reviews the replies. That reaches **63.4 per cent** on development, 317 of 500, and 52.5 per cent on validation."
     >
-    > *(16:34 – 17:08)* "What held up: calibration. Expected calibration error is **0.093**, inside our 0.15 target, with intent accuracy at 85 per cent and retrieval precision at three of 92.5 per cent. No must-not-automate ticket was answered, nothing crashed, and all eighty decisions are in the audit log. What did not hold up: five of the nineteen answers we sent were for tickets that should have gone to a person, and P95 latency was 8.2 seconds against a 3-second budget. Rerunning on three low-cost providers with no rate-limit fallbacks gave 20.0 per cent, 16 of 80, so rate limits were not the main constraint."
+    > *(16:34 – 17:08)* "Now the honest part. On validation the labels allow at most 60 per cent, so assisted mode reached about 88 per cent of the ceiling. The price is risk: on development it answered five of 87 tickets that must never be automated, which is why it needs a reviewer. The development figure is in-sample for the parts I tuned, and the validation set is not held out. What held up: calibration error of 0.108, inside our 0.15 target, no must-not ticket answered on validation, and every decision in the audit log."
     >
-    > *(17:08 – 17:44)* "I also ran all 500 development tickets through the real pipeline, for about 13 cents; these are in-sample for the parts I tuned. With a larger model, first-contact resolution was **44.2 per cent**, 221 of 500, with one of 87 must-not tickets answered. The correct-routing rate, tickets sent down the right path, is 60.4 per cent for the larger model and 54.4 for the economy mix. It is not first-contact resolution. Only 60 to 62 per cent of tickets are labelled automatable, so 65 per cent would mean answering tickets the labels say need a person."
+    > *(17:08 – 17:44)* "Latency is the miss. P95 is about 6.7 seconds against a 3-second budget. The pipeline itself takes milliseconds. The time is the model call, and a model this size cannot answer in milliseconds on any hardware. Three seconds at P95 would need a dedicated or self-hosted model, a smaller one drafting, streaming so the first words appear fast, and no second attempt. I have not measured those, so that is a design path, not a result. The median answered ticket is already about three seconds."
     >
-    > *(17:44 – 18:00)* "Two caveats. The similarity floor was chosen after I saw validation results, so these figures are optimistic, and the hidden set has not been run. Next I would fit thresholds on the development tickets, add provider capacity, and add human review for answer types still wrong-routed. Thank you."
+    > *(17:44 – 18:00)* "So the system is safe by default, and reaches the target only with a person in the loop. Next I would fit thresholds on the development tickets and run the hidden set. Thank you."
 
 ---
 

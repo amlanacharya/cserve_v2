@@ -25,3 +25,5 @@ The configured default remains 0.40. No 0.40 control re-run was made, so generat
 ## Regenerate-on-failure runs (11 November 2026)
 
 Floor 0.40, `MAX_SPEND_USD=2`, classification caches copied per run from `val_run5_cache.json` / `dev500_cache.json`. `GUARDRAIL_RETRY=1` or `GUARDRAIL_RETRY_STRICT=1` as named; "120b" = `PROVIDER_ORDER=openrouter`, `OPENROUTER_MODEL=openai/gpt-oss-120b`. Dev 500: `dev500_retry`, `dev_strict`, `dev_120b_retry` (plus earlier `dev500`, `dev500_gptoss120b_openrouter`). Val 80: `val_ctrl`, `val_retry`, `val_strict`, `val_120b_retry`, `val_120b_strict`, `val_120b_noretry` (each with `*_decisions.db`). Scored against dataset labels; see report Section 7.9. Defaults unchanged (retry off); recommended safe profile is `gpt-oss-120b` without retry; max-FCR opt-in is 120b + retry (63.4% dev, 5/87 must-not answered).
+
+- val_final_safe / val_final_assisted (13 Nov 2026): validation n=80, OpenRouter gpt-oss-120b, floor 0.40, GUARDRAIL_RETRY off / on. FCR 37.5% (30) / 52.5% (42); 2 of 80 tickets served by Gemini after OpenRouter timeouts. Report Section 7.10.
