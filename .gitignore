@@ -92,3 +92,7 @@ graft/
 # Only the root README.md is tracked; other Markdown stays local
 *.md
 !/README.md
+
+# Local-only (kept on disk, not on the remote)
+/hyperframes_film/
+/scripts/
