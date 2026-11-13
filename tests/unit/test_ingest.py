@@ -178,3 +178,12 @@ def test_normalize_ticket_with_stats_counts_subject_and_body():
     )
     assert n == 2
     assert "@" not in ticket.body and "@" not in (ticket.subject or "")
+
+
+def test_api_key_redacted_regardless_of_length_and_environment():
+    """Regression: the demo ticket's 24-character key and test-mode keys were previously missed."""
+    from src.core.patterns import API_KEY_PATTERN
+
+    for key in ("cs_live_9a8b7c6d5e4f3a2b1c0d9e8f", "cs_test_" + "b" * 16, "cs_live_" + "a" * 32, "cs_live_" + "c" * 64):
+        assert API_KEY_PATTERN.search(f"my key {key} here"), key
+    assert not API_KEY_PATTERN.search("cs_live_short")

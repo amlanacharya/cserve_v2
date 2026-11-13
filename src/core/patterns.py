@@ -2,7 +2,7 @@
 import re
 
 # Regular expression patterns for PII and sensitive data
-API_KEY_PATTERN = re.compile(r"cs_live_[0-9a-zA-Z]{32}")
+API_KEY_PATTERN = re.compile(r"cs_(?:live|test)_[0-9a-zA-Z]{16,64}")
 BEARER_TOKEN_PATTERN = re.compile(r"Bearer\s+[A-Za-z0-9\-._~+/]+=*", re.IGNORECASE)
 EMAIL_PATTERN = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b")
 PHONE_PATTERN = re.compile(

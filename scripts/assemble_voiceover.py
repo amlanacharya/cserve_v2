@@ -6,6 +6,7 @@ Outputs (01_Video/): hyperframes_presentation_18min_voiced.mp4 and in_app_demo_l
 Each segment is time-fitted to its window: sped up (max 1.15x) if it overruns, slowed (min 0.88x)
 to use slack, so delivery stays natural. Overruns beyond the cap are reported, never truncated.
 """
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -56,15 +57,58 @@ def mux(video: Path, audio: Path, out: Path) -> None:
                     "-c:v", "copy", "-c:a", "aac", "-b:a", "160k", "-t", f"{duration(video):.3f}", str(out)], check=True)
 
 
+def pii_text() -> list[str]:
+    """Real normalizer output for the demo's PII ticket (src/templates/dashboard.html, DEMO-PII-01)."""
+    sys.path.insert(0, str(ROOT))
+    from src.ingest.normalizer import normalize_ticket_with_stats
+
+    raw = {"ticket_id": "DEMO-PII-01", "channel": "chat", "customer_id": "cust_billing_44",
+           "body": "My corporate Visa card 4532015012345671 failed renewal on secret API key "
+                   "cs_live_9a8b7c6d5e4f3a2b1c0d9e8f. Please review account."}
+    canon, n = normalize_ticket_with_stats(raw)
+    assert "[REDACTED_CC]" in canon.body and "[REDACTED_API_KEY]" in canon.body and n == 2, canon.body
+    return [canon.body, f"{n} items redacted before any model call"]
+
+
+def add_pii_caption(src: Path, dst: Path, t0: float, t1: float, film: bool) -> None:
+    body, count = pii_text()
+    font = "consola.ttf"  # copied next to the caption files: drive-letter colons break ffmpeg filter parsing
+    enable = f"enable='between(t,{t0},{t1})'"
+    work = OUT / "caption"
+    work.mkdir(exist_ok=True)
+    shutil.copy("C:/Windows/Fonts/consola.ttf", work / font)
+    if film:  # white callout over the page subtitle strip (free space in the film layout)
+        (work / "l1.txt").write_text("REDACTED ON INGEST  (normalizer output for this ticket, as stored)", encoding="utf-8")
+        (work / "l2.txt").write_text(body, encoding="utf-8")
+        (work / "l3.txt").write_text(count, encoding="utf-8")
+        vf = (f"drawbox=x=60:y=168:w=1500:h=54:color=white@1:t=fill:{enable},"
+              f"drawbox=x=60:y=168:w=1500:h=54:color=0x1d4ed8@1:t=2:{enable},"
+              f"drawtext=fontfile={font}:textfile=l1.txt:x=74:y=174:fontsize=15:fontcolor=0x1d4ed8:{enable},"
+              f"drawtext=fontfile={font}:textfile=l2.txt:x=74:y=194:fontsize=18:fontcolor=0x0f172a:{enable}")
+    else:  # dark callout in the empty area under the ticket form
+        import textwrap
+        (work / "d.txt").write_bytes(("REDACTED ON INGEST\n(normalizer output, as stored)\n" + "\n".join(textwrap.wrap(body, 36)) + "\n" + count).encode("utf-8"))
+        vf = (f"drawbox=x=139:y=852:w=414:h=176:color=0x0b1220@1:t=fill:{enable},"
+              f"drawbox=x=139:y=852:w=414:h=176:color=0x38bdf8@1:t=2:{enable},"
+              f"drawtext=fontfile={font}:textfile=d.txt:x=155:y=864:fontsize=14:line_spacing=5:fontcolor=0xe2e8f0:{enable}")
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(src), "-vf", vf, "-c:v", "libx264", "-crf", "18", "-preset", "veryfast",
+                    "-pix_fmt", "yuv420p", "-c:a", "copy", "-movflags", "+faststart", str(dst)], check=True, cwd=work)
+
+
 def main() -> None:
     segs = parse_segments()
     film_v = VID / "hyperframes_presentation_18min.mp4"
     demo_v = VID / "in_app_demo_live.mp4"
     p1 = build_track(segs, 0, duration(film_v), OUT / "narration_full.wav")
-    mux(film_v, OUT / "narration_full.wav", VID / "hyperframes_presentation_18min_voiced.mp4")
+    mux(film_v, OUT / "narration_full.wav", OUT / "film_nocap.mp4")
     demo = [s for s in segs if 750 <= s["start"] < 960]  # Act VI is the live demo
     p2 = build_track(demo, 750, duration(demo_v), OUT / "narration_demo.wav")
-    mux(demo_v, OUT / "narration_demo.wav", VID / "in_app_demo_live_voiced.mp4")
+    mux(demo_v, OUT / "narration_demo.wav", OUT / "demo_nocap.mp4")
+    import json
+    marks = {m["id"]: m for m in json.loads((ROOT / "hyperframes_film/assets/in_app_demo.marks.json").read_text())["marks"]}
+    t0, t1 = marks["pii"]["start"] + 4, marks["pii"]["end"] - 0.5  # after the result has rendered
+    add_pii_caption(OUT / "demo_nocap.mp4", VID / "in_app_demo_live_voiced.mp4", t0, t1, film=False)
+    add_pii_caption(OUT / "film_nocap.mp4", VID / "hyperframes_presentation_18min_voiced.mp4", 750 + t0, 750 + t1, film=True)
     for p in p1 + p2:
         print("WARN", p)
     print("done", "with warnings" if p1 + p2 else "clean")
